@@ -14,9 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import keras
-from keras.applications import mobilenet_v2
-from ..utils.image import preprocess_image
+from common.common_imports import *
 
 from . import retinanet
 from . import Backbone
@@ -26,7 +24,7 @@ class MobileNetBackbone(Backbone):
     """ Describes backbone information and provides utility functions.
     """
 
-    allowed_backbones = ['mobilenettiny128', 'mobilenettiny160', 'mobilenettiny192', 'mobilenettiny224']
+    allowed_backbones = ['mobilenet128', 'mobilenet160', 'mobilenet192', 'mobilenet224']
 
     def retinanet(self, *args, **kwargs):
         """ Returns a retinanet model using the correct backbone.
@@ -41,18 +39,13 @@ class MobileNetBackbone(Backbone):
         if backbone not in MobileNetBackbone.allowed_backbones:
             raise ValueError('Backbone (\'{}\') not in allowed backbones ({}).'.format(backbone, MobileNetBackbone.allowed_backbones))
 
-    def preprocess_image(self, inputs):
-        """ Takes as input an image and prepares it for being passed through the network.
-        """
-        return preprocess_image(inputs, mode='tf')
 
-
-def mobilenet_retinanet(num_classes, backbone='mobilenettiny224_1.0', inputs=None, modifier=None, **kwargs):
-    """ Constructs a retinanet model using a mobilenettiny backbone.
+def mobilenet_retinanet(num_classes, backbone='mobilenet224_1.0', inputs=None, modifier=None, **kwargs):
+    """ Constructs a retinanet model using a mobilenet backbone.
 
     Args
         num_classes: Number of classes to predict.
-        backbone: Which backbone to use (one of ('mobilenettiny128', 'mobilenettiny160', 'mobilenettiny192', 'mobilenettiny224')).
+        backbone: Which backbone to use (one of ('mobilenet128', 'mobilenet160', 'mobilenet192', 'mobilenet224')).
         inputs: The inputs to the network (defaults to a Tensor of shape (None, None, 3)).
         modifier: A function handler which can modify the backbone before using it in retinanet (this can be used to freeze backbone layers for example).
 
@@ -63,14 +56,14 @@ def mobilenet_retinanet(num_classes, backbone='mobilenettiny224_1.0', inputs=Non
 
     # choose default input
     if inputs is None:
-        inputs = keras.layers.Input((None, None, 3))
+        inputs = tf.keras.layers.Input((None, None, 3))
 
-    backbone = mobilenet_v2.MobileNetV2(input_tensor=inputs, alpha=alpha, include_top=False, pooling=None, weights="imagenet")
+    backbone = tf.keras.applications.mobilenet_v2.MobileNetV2(input_tensor=inputs, alpha=alpha, include_top=False, pooling=None)
 
     # create the full model
-    layer_names = ['block_12_add', 'out_relu']  # TODO: please check whether the name is correct or not
+    layer_names = ['block_5_add', 'block_12_add', 'out_relu']  # TODO: please check whether the name is correct or not
     layer_outputs = [backbone.get_layer(name).output for name in layer_names]
-    backbone = keras.models.Model(inputs=inputs, outputs=layer_outputs, name=backbone.name)
+    backbone = tf.keras.models.Model(inputs=inputs, outputs=layer_outputs, name=backbone.name)
 
     # invoke modifier if given
     if modifier:

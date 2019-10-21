@@ -29,7 +29,7 @@ class CoAttention_CNN(tf.keras.layers.Layer):
 		# context_vector shape after == (batch_size, width, height, num_of_channels)
 		context_vector = attention_weights * hs
 
-		return context_vector, attention_weights
+		return context_vector
 
 
 if __name__ == "__main__":
