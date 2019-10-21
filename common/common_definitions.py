@@ -71,8 +71,17 @@ logging.basicConfig(level=LOGGING_LEVEL)
 
 if not USE_GPU:
 	os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+else:
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+      # Restrict TensorFlow to only use the first GPU
+      try:
+        tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
+      except RuntimeError as e:
+        # Visible devices must be set at program startup
+        print(e)
 
-	if tf.test.gpu_device_name():
-		print('TF uses GPU')
-	else:
-		print("TF does not use GPU")
+if tf.test.gpu_device_name():
+	print('TF uses GPU')
+else:
+	print("TF does not use GPU")
