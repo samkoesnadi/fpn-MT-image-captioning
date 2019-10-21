@@ -58,7 +58,7 @@ def mobilenet_retinanet(num_classes, backbone='mobilenet224_1.0', inputs=None, m
     if inputs is None:
         inputs = tf.keras.layers.Input((None, None, 3))
 
-    backbone = tf.keras.applications.mobilenet_v2.MobileNetV2(input_tensor=inputs, alpha=alpha, include_top=False, pooling=None)
+    backbone = tf.keras.applications.mobilenet_v2.MobileNetV2(input_tensor=inputs, alpha=alpha, include_top=False, pooling=None, weights=None)
 
     # create the full model
     layer_names = ['block_5_add', 'block_12_add', 'out_relu']  # TODO: please check whether the name is correct or not
