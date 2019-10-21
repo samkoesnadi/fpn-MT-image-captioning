@@ -10,3 +10,4 @@ tqdm
 tensorflow-gpu
 tensorflow
 git+https://github.com/salaniz/pycocoevalcap
+scikit-image
