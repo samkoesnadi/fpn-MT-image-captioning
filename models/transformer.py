@@ -15,7 +15,6 @@ from datetime import datetime
 from common.common_definitions import *
 from utils.utils import *
 from dataset import *
-from sklearn.metrics import accuracy_score
 from models import retinanet
 
 

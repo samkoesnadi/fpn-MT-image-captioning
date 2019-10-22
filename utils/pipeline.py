@@ -3,8 +3,6 @@ Pipeline for the model to train and predict
 """
 
 from models.transformer import *
-from pycocotools.coco import COCO
-from pycocoevalcap.eval import COCOEvalCap
 
 
 class Pipeline():
@@ -168,7 +166,7 @@ class Pipeline():
 			result = self.predict(img, max_seq_len)[0]
 			result = self.tokenizer.sequences_to_texts([result.numpy()])[0]
 			results.append({
-				"image_id":imgId,
+				"image_id": imgId,
 				"caption": result
 			})
 
@@ -222,18 +220,3 @@ class Pipeline():
 		plt.tight_layout()
 		plt.savefig(filename)
 		plt.close()
-
-	def calculate_accuracy(self, target, result, position):
-		"""
-
-		:param target:
-		:param result:
-		:param position:
-		:return: >=0 then accuracy score, -1 result size is smaler than target
-		"""
-		len_target = target.size
-
-		if len_target + position <= result.size:
-			return accuracy_score(target, result[position:len_target + position])
-		else:
-			return -1
