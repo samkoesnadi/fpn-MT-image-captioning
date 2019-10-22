@@ -166,7 +166,7 @@ class Pipeline():
 			result = self.predict(img, max_seq_len)[0]
 			result = self.tokenizer.sequences_to_texts([result.numpy()])[0]
 			results.append({
-				"image_id":imgId,
+				"image_id": imgId,
 				"caption": result
 			})
 

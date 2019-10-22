@@ -58,17 +58,22 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 	else:
 		# preprocess captions into token
 		tokenizer = tf.keras.preprocessing.text.Tokenizer(num_words=TOP_K,
-		                                                  oov_token="<unk>",
+		                                                  oov_token="unk",
 		                                                  filters='!"#$%&()*+-/:;=?@[\]^_`{|}~ ')
 		tokenizer.fit_on_texts(captions)
 
-		tokenizer.word_index['<pad>'] = 0
-		tokenizer.index_word[0] = '<pad>'
+		# put padding in the dictionary
+		tokenizer.word_index[''] = 0
+		tokenizer.index_word[0] = ''
 
 		store_tokenizer_to_path(tokenizer, TOKENIZER_FILENAME)
 
+	# preprocess the captions to seperate ',' and '.' from words
+	captions = [re.sub(r'([.,])', r" \1 ", caption) for caption in captions]
 
+	# convert captions to sequences
 	captions_token = tokenizer.texts_to_sequences(captions)
+
 	set_len = math.ceil(len(captions_token) / BATCH_SIZE)
 	max_seq_len = max(map(len, captions_token))
 
