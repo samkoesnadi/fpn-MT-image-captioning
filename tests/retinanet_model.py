@@ -23,5 +23,3 @@ if __name__ == "__main__":
 	classification_features = [classification_submodel(feature) for feature in features]
 
 	print(regression_features)
-
-	# print(model.summary())

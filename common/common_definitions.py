@@ -9,6 +9,8 @@ USE_GPU = True
 
 LOGGING_LEVEL = logging.DEBUG
 
+HIERACHICAL_TRANSFORMER = True
+
 TOP_K = 10000  # this is for tokenizer
 
 ACTIVATION = tf.nn.relu
