@@ -48,7 +48,7 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 
 	anns = coco.loadAnns(annIds)
 	anns = list(filter(lambda ann: ann["caption"] != ' ', anns))  # filter out empty data caption
-	captions = ["<start> " + ann["caption"] + " <end>" for ann in anns["caption"]]  # also put the start and end token
+	captions = ["<start> " + ann["caption"] + " <end>" for ann in anns]  # also put the start and end token
 	imgIds = [ann["image_id"] for ann in anns]
 
 	tokenizer_file = Path(TOKENIZER_FILENAME)
