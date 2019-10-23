@@ -4,6 +4,7 @@ Pipeline for the model to train and predict
 
 from models.transformer import *
 from utils.utils import *
+from tqdm import tqdm
 
 class Pipeline():
 	"""
@@ -222,7 +223,7 @@ class Pipeline():
 		"""
 		results = []
 
-		for (img, imgId) in generator:
+		for (img, imgId) in tqdm(generator, total=N_VAL_DATASET):
 			result = self.predict(img, max_seq_len)[0]
 			result = self.tokenizer.sequences_to_texts([result.numpy()])[0]
 			results.append({

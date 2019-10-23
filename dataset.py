@@ -47,7 +47,8 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 	annIds = coco.getAnnIds()[:n_test] if n_test is not None else coco.getAnnIds()
 
 	anns = coco.loadAnns(annIds)
-	captions = ["<start> " + ann["caption"] + " <end>" for ann in anns]  # also put the start and end token
+	anns = list(filter(lambda ann: ann["caption"] != ' ', anns))  # filter out empty data caption
+	captions = ["<start> " + ann["caption"] + " <end>" for ann in anns["caption"]]  # also put the start and end token
 	imgIds = [ann["image_id"] for ann in anns]
 
 	tokenizer_file = Path(TOKENIZER_FILENAME)
@@ -177,6 +178,7 @@ def get_coco_images_captions_generator(dataDir, dataType):
 		annIds = coco.getAnnIds(imgIds=imgId)
 
 		anns = coco.loadAnns(annIds)
+		anns = list(filter(lambda ann: ann["caption"] != ' ', anns))  # filter out empty data caption
 		captions = ["<start> " + ann["caption"] + " <end>" for ann in anns]  # also put the start and end token
 
 		captions_token = tokenizer.texts_to_sequences(captions)
@@ -209,7 +211,12 @@ class COCO_Images_ImageID:
 		# initialize COCO api for instance annotations
 		self.coco = COCO(annFile)
 
-		self.imgIds = self.coco.getImgIds()  # get n_val imgIds
+		# filter out all empty datasets
+		annIds = self.coco.getAnnIds()
+		anns = self.coco.loadAnns(annIds)
+		anns = filter(lambda ann: ann["caption"] != ' ', anns)  # filter out empty data caption
+
+		self.imgIds = list(map(lambda ann: ann["image_id"], anns))  # get n_val imgIds
 
 		self.max_len = len(self.imgIds) if n_val is None else n_val
 		self.imgIds = self.imgIds if n_val is None else self.imgIds[:n_val]

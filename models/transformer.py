@@ -374,8 +374,6 @@ class Decoder(tf.keras.layers.Layer):
 		seq_len = tf.shape(x)[1]
 		attention_weights = {}
 
-		x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-
 		x += self.pos_encoding[np.newaxis, :seq_len, :]
 
 		x = self.dropout(x, training=training)
