@@ -64,6 +64,7 @@ if __name__ == "__main__":
 
 				if (epoch + 1) % N_EPOCH_TO_EVALUATE == 0:
 					# evaluate
+					print("Evaluating...")
 					results = master.evaluate(iter(val_datasets), max_seq_len)
 
 					# save the results to file to be evaluated by COCO library
