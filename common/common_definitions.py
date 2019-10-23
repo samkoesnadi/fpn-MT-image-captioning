@@ -16,7 +16,7 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 8
+BATCH_SIZE = 10
 BUFFER_SIZE = 1000  # this is important for shuffling
 EPOCHS = 20
 BEAM_SEARCH_N = 1
