@@ -26,7 +26,7 @@ class Pipeline():
 
 
 		# define optimizer and loss
-		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS)
+		self.learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)
 		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9, amsgrad=True, clipnorm=1.)
 
 		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')

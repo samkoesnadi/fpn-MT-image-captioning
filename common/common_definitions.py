@@ -16,11 +16,11 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 10
+BATCH_SIZE = 12
 BUFFER_SIZE = 1000  # this is important for shuffling
-EPOCHS = 20
+EPOCHS = 50
 BEAM_SEARCH_N = 1
-N_VAL_DATASET = 20 # the number of dataset to be validated
+N_VAL_DATASET = 10 # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
 N_EPOCH_TO_EVALUATE = 1  # rythm of the epoch to evaluate and save checkpoint
 DROPOUT_RATE = 0.1
@@ -28,7 +28,7 @@ DROPOUT_RATE = 0.1
 MIN_EPOCH_TO_BREAK = 10
 GAP_OF_DEAD_EPOCH = 3  # gap before it is going to kill the no more training network
 # INIT_LEARNING_RATE = 1e-4
-WARM_UP_STEPS = 2000  # for scheduler
+WARM_UP_STEPS = 4000  # for scheduler
 
 # filenames
 TOKENIZER_FILENAME = "datasets/_tokenizer.json"
