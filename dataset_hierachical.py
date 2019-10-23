@@ -1,5 +1,5 @@
 """
-Load train and validation datasets for hierachical transformer
+Load train and validation datasets for hierachical transformer (deprecated)
 """
 
 from dataset import *
@@ -35,7 +35,7 @@ def H_get_coco_images_dataset(dataDir, dataType, n_test=None):
 	annIds = coco.getAnnIds()[:n_test] if n_test is not None else coco.getAnnIds()
 
 	anns = coco.loadAnns(annIds)
-	captions = [ann["caption"] + " <end>" for ann in anns]  # also put the start and end token
+	captions = ["<start> " + ann["caption"] + " <end>" for ann in anns]  # also put the start and end token
 	imgIds = [ann["image_id"] for ann in anns]
 
 	tokenizer_file = Path(TOKENIZER_FILENAME)
@@ -69,27 +69,35 @@ def H_get_coco_images_dataset(dataDir, dataType, n_test=None):
 	set_len = math.ceil(len(captions_token) / BATCH_SIZE)  # total steps in one epoch
 
 	# max_seq_len = max(map(len, captions_token))
+	max_dataset_len = len(groups_sentences)
 	max_sentence_len = max(map(len, groups_sentences))
-	max_words_len = max([max(map(len, dataset)) for dataset in groups_sentences])
+	max_words_len = max([max(map(len, dataset)) for dataset in groups_sentences]) + 2  # additional <start> and <end> token, so plus 2
+
+	np_groups_sentences = np.zeros((max_dataset_len, max_sentence_len, max_words_len))
 
 	def process_sentence(sentence):
-		if sentence[0] != end_token:
-			return _pad_list([start_token] + sentence + [end_token], max_words_len, 0)
-		else:
+		if sentence[0] == end_token:
 			return _pad_list(sentence, max_words_len, 0)
+		elif sentence[0] == start_token:
+			return _pad_list(sentence + [end_token], max_words_len, 0)
+		else:
+			return _pad_list([start_token] + sentence + [end_token], max_words_len, 0)
 
-	groups_sentences = [_pad_list(list(map(process_sentence, dataset)), max_sentence_len, [0]) for dataset in groups_sentences]
+	for i_dataset, dataset in enumerate(groups_sentences):
+		for i_sentence, sentence in enumerate(dataset):
+			a = process_sentence(sentence)
+			np_groups_sentences[i_dataset, i_sentence, :] = a
 
 	imgs = coco.loadImgs(imgIds)
 	img_paths = [os.path.join(dataDir, "images", dataType, img["file_name"]) for img in imgs]
 
 	# Feel free to change batch_size according to your system configuration
-	image_dataset = tf.data.Dataset.from_tensor_slices((img_paths, groups_sentences))
+	image_dataset = tf.data.Dataset.from_tensor_slices((img_paths, np_groups_sentences))
 	image_dataset = image_dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 	image_dataset = image_dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
 	image_dataset = image_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-	return image_dataset, max_seq_len, set_len
+	return image_dataset, set_len
 
 if __name__ == "__main__":
-	train_datasets, max_seq_len, train_set_len = H_get_coco_images_dataset(DATADIR, DATATYPE_TRAIN, N_TRAIN_DATASET)
+	train_datasets, train_set_len = H_get_coco_images_dataset(DATADIR, DATATYPE_TRAIN, N_TRAIN_DATASET)

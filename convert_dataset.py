@@ -62,6 +62,10 @@ def convert_store_format_to_coco(list_of_files, parentDir_string, dataDir, dataT
 			findings = (root.find(".//AbstractText[@Label=\"FINDINGS\"]").text)
 			impression = (root.find(".//AbstractText[@Label=\"IMPRESSION\"]").text)
 
+			# if both are None, then skip this dataset
+			if findings == impression is None:
+				continue
+
 			# if None then convert to empty string
 			findings = '' if findings is None else findings
 			impression = '' if impression is None else impression
@@ -108,4 +112,4 @@ def convert_store_format_to_coco(list_of_files, parentDir_string, dataDir, dataT
 
 if __name__ == "__main__":
 	# convert iuxray raw format to coco
-	convert_store_to_coco_val_train("datasets/iuxray/annotations_raw_xml/nlmcxr/ecgen-radiology/")
+	convert_store_to_coco_val_train("datasets/iuxray/annotations_raw_xml/nlmcxr/ecgen-radiology/", AMOUNT_OF_VALIDATION)

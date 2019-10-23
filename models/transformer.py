@@ -55,14 +55,21 @@ def create_look_ahead_mask(size):  # smart thing going on here I should say
 	mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
 	return mask  # (seq_len, seq_len)
 
-
-def create_masks(tar):
+def create_dec_masks(tar, padding=True):
+	"""
+	mask for decoder
+	:param tar:
+	:return:
+	"""
 	# Used in the 1st attention block in the decoder.
 	# It is used to pad and mask future tokens in the input received by
 	# the decoder.
 	look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
-	dec_target_padding_mask = create_padding_mask(tar)
-	combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
+	if padding:
+		dec_target_padding_mask = create_padding_mask(tar)
+		combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
+	else:
+		combined_mask = tf.broadcast_to(look_ahead_mask, [tf.shape(tar)[0], 1, tf.shape(tar)[1], tf.shape(tar)[1]])
 
 	return combined_mask
 
@@ -243,6 +250,41 @@ class DecoderLayer(tf.keras.layers.Layer):
 		return out3, attn_weights_block1, attn_weights_block2
 
 
+class DecoderLayer_HT(tf.keras.layers.Layer):
+	def __init__(self, d_model, num_heads, dff, rate=0.1):
+		super(DecoderLayer_HT, self).__init__()
+
+		self.mha1 = MultiHeadAttention(d_model, num_heads)
+
+		# Point wise feed forward network
+		self.ffn1 = tf.keras.layers.Dense(dff, activation=ACTIVATION,
+		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
+		self.ffn2 = tf.keras.layers.Dense(d_model,
+		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
+
+		self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+		self.layernorm3 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+
+		self.dropout1 = tf.keras.layers.Dropout(rate)
+		self.dropout3 = tf.keras.layers.Dropout(rate)
+
+	def call(self, x, training,
+	         look_ahead_mask):
+		# enc_output.shape == (batch_size, input_seq_len, d_model)
+
+		attn1, attn_weights_block1 = self.mha1(x, x, x, look_ahead_mask)  # (batch_size, target_seq_len, d_model)
+		attn1 = self.dropout1(attn1, training=training)
+		out1 = self.layernorm1(attn1 + x)
+
+		ffn_output = self.ffn1(out1)
+		ffn_output = self.ffn2(ffn_output)  # (batch_size, target_seq_len, d_model)
+
+		ffn_output = self.dropout3(ffn_output, training=training)
+		out3 = self.layernorm3(ffn_output + out1)  # (batch_size, target_seq_len, d_model)
+
+		return out3, attn_weights_block1
+
+
 class Encoder(tf.keras.layers.Layer):
 	def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size,
 	             rate=0.1):
@@ -311,19 +353,27 @@ class Decoder(tf.keras.layers.Layer):
 		self.d_model = d_model
 		self.num_layers = num_layers
 
-		self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model)
 		self.pos_encoding = raw_positional_encoding(max_seq_len + max_position, d_model)
 
 		self.dec_layers = [DecoderLayer(d_model, num_heads, dff, rate)
-		                   for _ in range(num_layers)]
+	                   for _ in range(num_layers)]
+
 		self.dropout = tf.keras.layers.Dropout(rate)
 
 	def call(self, x, enc_output, training,
 	         look_ahead_mask, padding_mask):
+		"""
+
+		:param x: (batch_size, target_seq_len, d_model)
+		:param enc_output:
+		:param training:
+		:param look_ahead_mask:
+		:param padding_mask:
+		:return:
+		"""
 		seq_len = tf.shape(x)[1]
 		attention_weights = {}
 
-		x = self.embedding(x)  # (batch_size, target_seq_len, d_model)
 		x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
 
 		x += self.pos_encoding[np.newaxis, :seq_len, :]
@@ -341,6 +391,51 @@ class Decoder(tf.keras.layers.Layer):
 		return x, attention_weights
 
 
+class Decoder_No_Encoder(tf.keras.layers.Layer):
+	def __init__(self, num_layers, d_model, num_heads, dff, target_vocab_size,
+	             rate=0.1, max_position=0, max_seq_len=12):
+		super(Decoder_No_Encoder, self).__init__()
+
+		self.d_model = d_model
+		self.num_layers = num_layers
+
+		self.pos_encoding = raw_positional_encoding(max_seq_len + max_position, d_model)
+
+		self.dec_layers = [DecoderLayer_HT(d_model, num_heads, dff, rate)
+		                   for _ in range(num_layers)]
+
+		self.dropout = tf.keras.layers.Dropout(rate)
+
+	def call(self, x, training,
+	         look_ahead_mask):
+		"""
+
+		:param x: (batch_size, target_seq_len, d_model)
+		:param enc_output:
+		:param training:
+		:param look_ahead_mask:
+		:param padding_mask:
+		:return:
+		"""
+		seq_len = tf.shape(x)[1]
+		attention_weights = {}
+
+		x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+
+		x += self.pos_encoding[np.newaxis, :seq_len, :]
+
+		x = self.dropout(x, training=training)
+
+		for i in range(self.num_layers):
+			x, block1 = self.dec_layers[i](x, training,
+			                                       look_ahead_mask)
+
+			attention_weights['decoder_layer{}_block1'.format(i + 1)] = block1
+
+		# x.shape == (batch_size, target_seq_len, d_model)
+		return x, attention_weights
+
+
 class Transformer(tf.keras.Model):
 	def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size,
 	             target_vocab_size, rate=0.1, max_position=0, max_seq_len=12):
@@ -348,6 +443,8 @@ class Transformer(tf.keras.Model):
 
 		self.encoder = Encoder(num_layers, d_model, num_heads, dff,
 		                       input_vocab_size, rate)
+
+		self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model)
 
 		self.decoder = Decoder(num_layers, d_model, num_heads, dff,
 		                       target_vocab_size, rate, max_position, max_seq_len)
@@ -360,6 +457,8 @@ class Transformer(tf.keras.Model):
 		else:  # this is to speed up inference time, so put the encoder preprocessed outside of the Transformer
 			enc_output = inp
 
+		tar = self.embedding(tar)  # (batch_size, target_seq_len, d_model)
+
 		# dec_output.shape == (batch_size, tar_seq_len, d_model)
 		dec_output, attention_weights = self.decoder(
 			tar, enc_output, training, look_ahead_mask, None)
@@ -367,3 +466,71 @@ class Transformer(tf.keras.Model):
 		final_output = self.final_layer(dec_output)  # (batch_size, tar_seq_len, target_vocab_size)
 
 		return final_output, attention_weights
+
+class Transformer_HT(tf.keras.Model):
+	def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size,
+	             target_vocab_size, start_token, rate=0.1, max_position=0, max_seq_len=12):
+		super(Transformer_HT, self).__init__()
+
+		# attributes
+		self.start_token = start_token
+		self.d_model = d_model
+
+		self.inp = tf.keras.layers.InputLayer((None, None), sparse=True)  # this is for decoder target
+
+		self.encoder = Encoder(num_layers, d_model, num_heads, dff,
+		                       input_vocab_size, rate)
+
+		self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model)
+
+		self.topic_decoder = Decoder(num_layers, d_model, num_heads, dff,
+		                       target_vocab_size, rate, max_position, max_seq_len)  # decoder to generate topic as first input to sentence decoder
+
+		self.sentence_decoder = Decoder_No_Encoder(num_layers, d_model, num_heads, dff,
+		                       target_vocab_size, rate, max_position, max_seq_len)
+
+		self.final_layer = tf.keras.layers.Dense(target_vocab_size, activation="linear")
+
+	def call(self, inp, tar, training):
+		# put the inp tensor in placeholder
+		tar = self.inp(tar)
+
+		if training:  # IMPORTANT: if training, then preprocess the image multiple time (because of the sequence length), otherwise please preprocess the image before calling this Transformer model
+			enc_output = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
+		else:  # this is to speed up inference time, so put the encoder preprocessed outside of the Transformer
+			enc_output = inp
+
+		# embedding the input
+		# tar.shape after embedding == (batch, sentence_len, words_len, d_model)
+		tar = self.embedding(tar)
+
+		decoder_input = [self.embedding(self.start_token)]  # shape = (1, d_model)
+		topic_output = tf.broadcast_to(decoder_input, (tf.shape(tar)[0], 1, self.d_model))  # shape = (batch, 1, d_model)
+		dec_output = []
+
+		for i_sentence in range(tf.shape(tar)[1]):
+			# look ahead mask
+			sentence_look_ahead_mask = create_dec_masks(topic_output[:, :, 0])
+
+			predicted_topic_dmodel, _ = self.topic_decoder(topic_output, enc_output, training, sentence_look_ahead_mask, None)
+			predicted_topic_dmodel = predicted_topic_dmodel[:, tf.newaxis, -1]  # get the last prediction
+
+			# concat it with topic_output
+			topic_output = tf.concat([topic_output, predicted_topic_dmodel], axis=1)
+
+			# run sentence_decoder
+			embedded_sentence = tar[:, i_sentence, :, :]
+			embedded_sentence = tf.concat([predicted_topic_dmodel, embedded_sentence], axis=1)  # prepend the predicted_topic_dmodel  as start word
+
+			words_look_ahead_mask = create_dec_masks(embedded_sentence, False)  # mask without padding
+			sentence_result, _ = self.sentence_decoder(embedded_sentence, training, words_look_ahead_mask)
+			sentence_result = sentence_result[:, 1:]  # remove the first prediction. TODO: there might be better solution for this
+
+			dec_output.append(sentence_result)
+
+		dec_output = tf.stack(dec_output, axis=1)
+
+		# dense layer for classification
+		final_output = self.final_layer(dec_output)  # (batch_size, tar_sentence_len, tar_words_len, target_vocab_size)
+
+		return final_output

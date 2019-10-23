@@ -5,9 +5,16 @@ Utils function that can be used as auxiliary
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-import tensorflow as tf
 from common.common_definitions import *
 
+import itertools
+
+def group_list_by_delimiter(lst, delimiter):
+	return [list(y) for x, y in itertools.groupby(lst, lambda z: z == delimiter) if not x]
+
+def pad_list(lst, N, pad=0):
+	lst += [pad] * (N - len(lst))
+	return lst
 
 def save_fig_png(input_arr, filename):
 	"""

@@ -3,7 +3,7 @@ Pipeline for the model to train and predict
 """
 
 from models.transformer import *
-
+from utils.utils import *
 
 class Pipeline():
 	"""
@@ -20,8 +20,12 @@ class Pipeline():
 		input_vocab_size = math.ceil(IMAGE_INPUT_SIZE / 16) ** 2  # the input vocab size is the last dimension from Feature Extractor, i.e. if the input is 512, max input_vocab_size would be 32*32
 
 		# instance of Transformer
-		self.transformer = Transformer(num_layers, d_model, num_heads, dff,
-		                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
+		if HIERACHICAL_TRANSFORMER:
+			self.transformer = Transformer_HT(num_layers, d_model, num_heads, dff,
+		                               input_vocab_size, self.target_vocab_size, self.tokenizer.word_index["<start>"], DROPOUT_RATE, max_seq_len=self.max_seq_len)
+		else:
+			self.transformer = Transformer(num_layers, d_model, num_heads, dff,
+			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
 
 
@@ -62,11 +66,11 @@ class Pipeline():
 	# batch sizes (the last batch is smaller), use input_signature to specify
 	# more generic shapes.
 	@tf.function
-	def train_step(self, img, caption_token):
+	def train_step_tf_fn(self, img, caption_token):
 		tar_inp = caption_token[:, :-1]
 		tar_real = caption_token[:, 1:]
 
-		_mask = create_masks(tar_inp)
+		_mask = create_dec_masks(tar_inp)
 
 		with tf.GradientTape() as tape:
 			predictions, _ = self.transformer(img, tar_inp,
@@ -78,6 +82,62 @@ class Pipeline():
 		self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
 
 		self.train_loss(loss)
+
+	def train_step_tf_fn_HT(self, img, caption_token):
+		tar_inps = caption_token[:, :, :-1]
+		tar_reals = caption_token[:, :, 1:]
+
+		with tf.GradientTape() as tape:
+			predictions = self.transformer(img, tar_inps,
+			                                  True)
+
+			# flatten the predictions and tar_reals to (None, -1, target_vocab_size)
+			predictions = tf.reshape(predictions, (BATCH_SIZE, -1, self.target_vocab_size))
+			tar_real = tf.reshape(tar_reals, (BATCH_SIZE, -1))
+
+			loss = self.loss(tar_real, predictions)
+
+		gradients = tape.gradient(loss, self.transformer.trainable_variables)
+		self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
+
+		self.train_loss(loss)
+
+	def __process_sentence(self, sentence, start_token, end_token, max_words_len):
+		if sentence[0] == end_token:
+			return pad_list([start_token] + sentence, max_words_len, 0)
+		elif sentence[0] == start_token:
+			return pad_list(sentence + [end_token], max_words_len, 0)
+		else:
+			return pad_list([start_token] + sentence + [end_token], max_words_len, 0)
+
+	def train_step(self, img, captions_token):
+		if HIERACHICAL_TRANSFORMER:
+			dot_token = self.tokenizer.word_index["."]
+			start_token = self.tokenizer.word_index["<start>"]
+			end_token = self.tokenizer.word_index["<end>"]
+
+			# remove all padding in captions_token
+			captions_token = [list(filter(lambda a: tf.not_equal(a, 0), dataset)) for dataset in captions_token]
+
+			groups_sentences = [group_list_by_delimiter(caption_token, dot_token) for caption_token in
+			                    captions_token]  # sentences groupped by delimiter
+
+			# max_seq_len = max(map(len, captions_token))
+			max_dataset_len = len(groups_sentences)
+			max_sentence_len = max(map(len, groups_sentences))
+			max_words_len = max([max(map(len, dataset)) for dataset in
+			                     groups_sentences]) + 2  # additional <start> and <end> token, so plus 2
+
+			np_groups_sentences = np.zeros((max_dataset_len, max_sentence_len, max_words_len))
+
+			for i_dataset, dataset in enumerate(groups_sentences):
+				for i_sentence, sentence in enumerate(dataset):
+					np_groups_sentences[i_dataset, i_sentence, :] = self.__process_sentence(sentence, start_token, end_token, max_words_len)
+
+			self.train_step_tf_fn_HT(img, tf.cast(np_groups_sentences, tf.float32))
+		else:
+			# not hierachical
+			self.train_step_tf_fn(img, captions_token)
 
 	def predict(self, img, max_seq_len, plot_layer=False):
 		"""

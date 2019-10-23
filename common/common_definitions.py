@@ -18,13 +18,13 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 BUFFER_SIZE = 1000  # this is important for shuffling
 EPOCHS = 20
-BEAM_SEARCH_N = 1
-N_VAL_DATASET = 20 # the number of dataset to be validated
+BEAM_SEARCH_N = 2
+N_VAL_DATASET = 100 # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
-N_EPOCH_TO_EVALUATE = 1  # rythm of the epoch to evaluate and save checkpoint
+N_EPOCH_TO_EVALUATE = 1  # rhythm of the epoch to evaluate and save checkpoint
 DROPOUT_RATE = 0.1
 
 MIN_EPOCH_TO_BREAK = 10
@@ -45,6 +45,11 @@ num_layers = 6
 d_model = 512
 dff = 2048
 num_heads = 8
+
+if HIERACHICAL_TRANSFORMER:
+	num_layers = num_layers // 2
+	d_model = d_model // 2
+	dff = dff // 2
 
 
 ### Set parameter for RetinaNet
@@ -69,19 +74,15 @@ DATADIR = 'datasets/iuxray'
 DATATYPE_VAL = 'val2017'
 DATATYPE_TRAIN = 'train2017'
 
+
+# convert_dataset
+AMOUNT_OF_VALIDATION = 200
+
+
 logging.basicConfig(level=LOGGING_LEVEL)
 
 if not USE_GPU:
 	os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-else:
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if gpus:
-      # Restrict TensorFlow to only use the first GPU
-      try:
-        tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
-      except RuntimeError as e:
-        # Visible devices must be set at program startup
-        print(e)
 
 if tf.test.gpu_device_name():
 	print('TF uses GPU')
