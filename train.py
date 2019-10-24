@@ -68,12 +68,12 @@ if __name__ == "__main__":
 					results = master.evaluate(iter(val_datasets), max_seq_len)
 
 					# save the results to file to be evaluated by COCO library
-					with open("results/" + DATATYPE_VAL + "_captions_result.json", 'w') as outfile:
+					with open(RESULT_FILE, 'w') as outfile:
 						json.dump(results, outfile)
 
 					if len(results) != 0:
 						# print metric evaluation
-						cider = master.metric_eval("results/" + DATATYPE_VAL + "_captions_result.json")
+						cider = master.metric_eval(RESULT_FILE)
 
 						tf.summary.scalar('CIDEr', cider,
 						                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
@@ -94,3 +94,19 @@ if __name__ == "__main__":
 		print('Saving Transformer weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))
 		master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
 		master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
+
+	else:  # NO TRAINING, just evaluation
+		max_seq_len = load_additional_info(ADDITIONAL_FILENAME)["max_seq_len"]
+		master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len)  # master pipeline
+
+		# evaluate
+		print("Evaluating...")
+		results = master.evaluate(iter(val_datasets), max_seq_len)
+
+		# save the results to file to be evaluated by COCO library
+		with open(RESULT_FILE, 'w') as outfile:
+			json.dump(results, outfile)
+
+		if len(results) != 0:
+			# print metric evaluation
+			cider = master.metric_eval(RESULT_FILE)

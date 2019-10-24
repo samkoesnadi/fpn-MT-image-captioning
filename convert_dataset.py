@@ -9,7 +9,7 @@ import random
 from shutil import copyfile
 from tqdm import tqdm
 
-def convert_store_to_coco_val_train(directory_to_walk, amount_of_validation=500,):
+def convert_store_to_coco_val_train(directory_to_walk, image_dir, amount_of_validation=500,):
 	list_of_files = os.listdir(directory_to_walk)
 	random.shuffle(list_of_files)
 
@@ -19,11 +19,11 @@ def convert_store_to_coco_val_train(directory_to_walk, amount_of_validation=500,
 
 	# run conversion for val_files and train_files
 	logging.info("Begin conversion to COCO format...")
-	convert_store_format_to_coco(val_files, directory_to_walk, DATADIR, DATATYPE_VAL)
-	convert_store_format_to_coco(train_files, directory_to_walk, DATADIR, DATATYPE_TRAIN)
+	convert_store_format_to_coco(val_files, directory_to_walk, image_dir, DATADIR, DATATYPE_VAL)
+	convert_store_format_to_coco(train_files, directory_to_walk, image_dir, DATADIR, DATATYPE_TRAIN)
 	logging.info("End conversion to COCO format...")
 
-def convert_store_format_to_coco(list_of_files, parentDir_string, dataDir, dataType, imgId_start=1000, annotationId_start=1000):
+def convert_store_format_to_coco(list_of_files, parentDir_string, image_dir, dataDir, dataType, imgId_start=1000, annotationId_start=1000):
 	coco_json = {
 		"info": {},
 		"licenses": [],
@@ -90,7 +90,7 @@ def convert_store_format_to_coco(list_of_files, parentDir_string, dataDir, dataT
 				annotations_list.append(annotation)
 
 				# copy image to the imgsDir path
-				imgFullPath = os.path.join(dataDir, "images", "nlmcxr", imgPath)
+				imgFullPath = os.path.join(image_dir, "images", "nlmcxr", imgPath)
 				copyfile(imgFullPath, os.path.join(imgsDir, imgPath))
 
 				imgId += 1
@@ -108,4 +108,4 @@ def convert_store_format_to_coco(list_of_files, parentDir_string, dataDir, dataT
 
 if __name__ == "__main__":
 	# convert iuxray raw format to coco
-	convert_store_to_coco_val_train("datasets/iuxray/annotations_raw_xml/nlmcxr/ecgen-radiology/")
+	convert_store_to_coco_val_train("datasets/iuxray_raw/annotations_raw_xml/nlmcxr/ecgen-radiology/", "datasets/iuxray_raw", AMOUNT_OF_VALIDATION)

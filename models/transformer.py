@@ -346,6 +346,8 @@ class Transformer(tf.keras.Model):
 	             target_vocab_size, rate=0.1, max_position=0, max_seq_len=12):
 		super(Transformer, self).__init__()
 
+		self.tar_inp = tf.keras.layers.InputLayer((None,), sparse=True)
+
 		self.encoder = Encoder(num_layers, d_model, num_heads, dff,
 		                       input_vocab_size, rate)
 
@@ -359,6 +361,9 @@ class Transformer(tf.keras.Model):
 			enc_output = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
 		else:  # this is to speed up inference time, so put the encoder preprocessed outside of the Transformer
 			enc_output = inp
+
+		# make tar sparse
+		tar = self.tar_inp(tar)
 
 		# dec_output.shape == (batch_size, tar_seq_len, d_model)
 		dec_output, attention_weights = self.decoder(

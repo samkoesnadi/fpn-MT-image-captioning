@@ -9,7 +9,7 @@ from common.common_imports import *
 from pycocotools.coco import COCO
 from pycocoevalcap.eval import COCOEvalCap
 from pathlib import Path
-
+from random import shuffle
 
 # Find the maximum length of any caption in our dataset
 def calc_max_length(tensor):
@@ -218,6 +218,9 @@ class COCO_Images_ImageID:
 
 		self.imgIds = list(map(lambda ann: ann["image_id"], anns))  # get n_val imgIds
 
+		# randomize the imgIds, so the evaluation will be fair
+		shuffle(self.imgIds)
+
 		self.max_len = len(self.imgIds) if n_val is None else n_val
 		self.imgIds = self.imgIds if n_val is None else self.imgIds[:n_val]
 
@@ -261,6 +264,10 @@ class MetricEval:
 		:param dataDir: of ground truth
 		:param dataType:  of ground truth
 		"""
+
+		self.dataDir = dataDir
+		self.dataType = dataType
+
 		# initialize COCO api for caption annotations
 		annFile = '{}/annotations/captions_{}.json'.format(dataDir, dataType)
 
@@ -290,7 +297,7 @@ class MetricEval:
 		# return CIDEr value
 		return cocoEval.eval["CIDEr"]
 
-	def print_result(self, imgId, resFile, dataDir, dataType):
+	def print_result(self, imgId, resFile):
 		"""
 
 		:param resFile:
@@ -311,7 +318,7 @@ class MetricEval:
 		self.coco.showAnns(anns)
 
 		img = self.coco.loadImgs(imgId)[0]
-		I = io.imread('%s/images/%s/%s' % (dataDir, dataType, img['file_name']))
+		I = io.imread('%s/images/%s/%s' % (self.dataDir, self.dataType, img['file_name']))
 		plt.imshow(I)
 		plt.axis('off')
 		plt.show()
