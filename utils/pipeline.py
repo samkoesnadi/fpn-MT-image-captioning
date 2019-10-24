@@ -174,6 +174,25 @@ class Pipeline():
 
 		return results
 
+	def evaluate_img(self, img, max_seq_len):
+		"""
+
+		:param max_seq_len:
+		:param generator: dataset generator
+		:return: list of result for the whole generator dataset
+		"""
+		results = []
+
+		imgId = 0
+		result = self.predict(img, max_seq_len)[0]
+		result = self.tokenizer.sequences_to_texts([result.numpy()])[0]
+		results.append({
+			"image_id": imgId,
+			"caption": result
+		})
+
+		return results
+
 	def plot_attention_weights(self, attention, input, caption_token, layer, filename, max_len=10):
 		"""
 

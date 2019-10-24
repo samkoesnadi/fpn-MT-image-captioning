@@ -3,3 +3,7 @@
 
 # ignore IDE-related config
 .idea
+
+# ignore all images
+*.jpg
+*.jpeg
