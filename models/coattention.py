@@ -24,12 +24,12 @@ class CoAttention_CNN(tf.keras.layers.Layer):
 		score_reshaped = tf.reshape(score, (score_shape[0], score_shape[1] * score_shape[2]))
 
 		attention_weights = tf.nn.softmax(score_reshaped, axis=1)
-		attention_weights = tf.reshape(attention_weights, (score_shape[0], score_shape[1], score_shape[2], score_shape[3]))
+		attention_weights = tf.reshape(attention_weights, (score_shape[0], score_shape[1], score_shape[2], score_shape[3]), name="coatt_retinanet_weights")
 
 		# context_vector shape after == (batch_size, width, height, num_of_channels)
 		context_vector = attention_weights * hs
 
-		return context_vector
+		return context_vector, attention_weights
 
 
 if __name__ == "__main__":

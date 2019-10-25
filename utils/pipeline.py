@@ -84,14 +84,14 @@ class Pipeline():
 
 		:param plot_layer: Boolean to plot the intermediate layers
 		:param img: (height, width, 3)
-		:return:
+		:return: beam_result, attention_weights, coatt_weights ... attention_weights are from the decoder, coatt_weights from RetinaNet in the encoder
 		"""
 		start_token = self.tokenizer.word_index['<start>']
 		end_token = self.tokenizer.word_index['<end>']
 
 		# preprocessing
 		img_expand_dims = tf.expand_dims(img, 0)
-		encoder_output = self.transformer.encoder(img_expand_dims, False, None)  # (batch_size, inp_seq_len, d_model)
+		encoder_output, coatt_weights = self.transformer.encoder(img_expand_dims, False, None)  # (batch_size, inp_seq_len, d_model)
 
 		# For beam search, tile encoder_output
 		encoder_output = tf.tile(encoder_output, tf.constant([BEAM_SEARCH_N, 1, 1]))
@@ -145,13 +145,13 @@ class Pipeline():
 
 			# return the result if the predicted_id is equal to the end token
 			if beam_result[-1] == end_token:
-				return beam_result[1:-1], attention_weights
+				return beam_result[1:-1], attention_weights, coatt_weights
 
 		# return the result if the predicted_id is equal to the end token
 		if beam_result[-1] == end_token:
-			return beam_result[1:-1], attention_weights
+			return beam_result[1:-1], attention_weights, coatt_weights
 		else:
-			return beam_result[1:], attention_weights
+			return beam_result[1:], attention_weights, coatt_weights
 
 	def evaluate(self, generator, max_seq_len):
 		"""
@@ -174,7 +174,7 @@ class Pipeline():
 
 		return results
 
-	def evaluate_img(self, img, max_seq_len):
+	def evaluate_img(self, img, max_seq_len, imgId=0):
 		"""
 
 		:param max_seq_len:
@@ -183,15 +183,14 @@ class Pipeline():
 		"""
 		results = []
 
-		imgId = 0
-		result = self.predict(img, max_seq_len)[0]
+		result, attention_weights, coatt_weights = self.predict(img, max_seq_len)
 		result = self.tokenizer.sequences_to_texts([result.numpy()])[0]
 		results.append({
 			"image_id": imgId,
 			"caption": result
 		})
 
-		return results
+		return results, attention_weights, coatt_weights
 
 	def plot_attention_weights(self, attention, input, caption_token, layer, filename, max_len=10):
 		"""

@@ -5,7 +5,6 @@ Utils function that can be used as auxiliary
 import numpy as np
 import matplotlib.pyplot as plt
 import math
-import tensorflow as tf
 from common.common_definitions import *
 
 
@@ -30,6 +29,110 @@ def save_fig_png(input_arr, filename):
 
 	plt.savefig("layers_figure/"+filename+".png", bbox_inches="tight")
 	plt.close()
+
+def plot_att(img, attention_weights):
+	"""
+	GENERATOR
+	TODO: for now, only take the first index of the beam
+	:param img:
+	:param attention_weights: dict with format ("decoder_layer{}_block_{}"). Block2: (BEAM_SIZE, num_heads, caption_seq_len, img_feature_len). Block1: (BEAM_SIZE, num_heads, caption_seq_len, caption_seq_len)
+	:return: yield (caption_seq_len, num_heads, img_size, img_size, 3)
+	"""
+	# change range of img to 0.25..0.75, reduce img brightness so we can see saliency better
+	img = (img - tf.math.reduce_min(img)) / (tf.math.reduce_max(img) - tf.math.reduce_min(img)) * .5 + .25
+
+	# get the attention_weights shape
+	att = attention_weights["decoder_layer1_block2"][0]  # get the attention (num_heads, caption_seq_len, img_feature_len)
+	att_shape = tf.cast(tf.shape(att), tf.float32)
+	feature_size = tf.math.sqrt(att_shape[2])
+
+	# broadcast image to att size
+	img_broadcasted = tf.broadcast_to(img, (att_shape[1], att_shape[0], IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 3))
+	zeros_pyramid_level = tf.zeros((att_shape[0], att_shape[1], IMAGE_INPUT_SIZE,
+	                                IMAGE_INPUT_SIZE, 2))  # this to be added when RGB is generated
+
+	for i_layer in range(num_layers):
+		att = attention_weights["decoder_layer" + str(i_layer + 1) + "_block2"][0]  # get the attention (num_heads, caption_seq_len, img_feature_len)
+
+		att = (att - tf.math.reduce_min(att)) / (
+					tf.math.reduce_max(att) - tf.math.reduce_min(att))  # change range
+
+		# reshape the att to square
+		att = tf.reshape(att, (att_shape[0] * att_shape[1], feature_size, feature_size))  # get the attention (num_heads * caption_seq_len, feature_size, feature_size)
+
+		# convert to RGB (red as reference for saliency)
+		att = tf.expand_dims(att, -1)
+
+		# resize att to image size
+		att = tf.map_fn(lambda img: tf.image.resize(img, (IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE), "nearest"), att)
+
+		# reshape it back
+		att = tf.reshape(att, (att_shape[0], att_shape[1], IMAGE_INPUT_SIZE,
+		                       IMAGE_INPUT_SIZE, 1))  # get the attention (num_heads, caption_seq_len, feature_size, feature_size, 1)
+
+		# concat zeros to pyramid_level
+		att = tf.concat([att, zeros_pyramid_level], -1)
+
+		# permute the dimension to match result dimensions
+		att = tf.transpose(att, perm=(1, 0, 2, 3, 4))  # (caption_seq_len, num_heads, img_size, img_size, 3)
+
+		# change range of pyramid_level
+		saliency_map = img_broadcasted + att  # add it to the image
+
+		yield saliency_map
+
+
+def plot_coatt(img, coatt_weights):
+	"""
+	Please make sure that img is the same size as IMAGE_INPUT_SIZE in common_definitions
+
+	:param img:
+	:param coatt_weights: (pyramid_size, batch, img_height, img_width, 1)
+	:return:
+	"""
+
+	# check if coatt_weights has the right dimension
+	try:
+		coatt_weights_shape = tf.shape(coatt_weights[0])
+		if coatt_weights_shape[0] != 1:
+			raise Exception("Coatt weights do not have the right size")
+	except Exception as e:
+		print("Coatt_weights does not meet defined specification. Error msg:", e)
+		return False
+
+	# this to be added when RGB is generated
+	zeros_pyramid_level = tf.zeros((IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 2))
+
+	# change range of img to 0.25..0.75, reduce img brightness so we can see saliency better
+	img = (img - tf.math.reduce_min(img)) / (tf.math.reduce_max(img) - tf.math.reduce_min(img)) * .5 + .25
+
+	results = []
+
+	# iterate for every pyramid_size
+	for pyramid_level in coatt_weights:
+		pyramid_level = tf.squeeze(pyramid_level)  # remove all one dimensions
+
+		pyramid_level_shape = tf.shape(pyramid_level)[0]
+
+		# convert to RGB (red as reference for saliency)
+		pyramid_level = tf.expand_dims(pyramid_level, -1)
+
+		# resize the saliency map to fit image
+		pyramid_level = (pyramid_level - tf.math.reduce_min(pyramid_level)) / (tf.math.reduce_max(pyramid_level) - tf.math.reduce_min(pyramid_level))  # change range
+		pyramid_level = tf.image.resize(pyramid_level, (IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE), "nearest")
+
+		# concat zeros to pyramid_level
+		pyramid_level = tf.concat([pyramid_level, zeros_pyramid_level], -1)
+
+		# change range of pyramid_level
+		saliency_map = img + pyramid_level  # add it to the image
+
+		saliency_map = (saliency_map - tf.math.reduce_min(saliency_map)) / (
+					tf.math.reduce_max(saliency_map) - tf.math.reduce_min(saliency_map))  # change range
+
+		results.append((saliency_map.numpy(), pyramid_level_shape.numpy()))
+
+	return results
 
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):

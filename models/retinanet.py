@@ -288,13 +288,13 @@ class FeatureExtractor(tf.keras.layers.Layer):
         classification = tf.keras.layers.Conv2D(NUM_OF_RETINANET_FILTERS, 3, padding="same", activation="linear", kernel_initializer=KERNEL_INITIALIZER)(classification_output)
 
         # co-attention, CNN, downsample, CNN
-        coatt_output = CoAttention_CNN()(regression, classification)
+        coatt_output, coatt_output_att_weights = CoAttention_CNN()(regression, classification)
         out = tf.keras.layers.Conv2D(NUM_OF_RETINANET_FILTERS, 3, padding="same", activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(coatt_output)
         out = tf.keras.layers.MaxPooling2D()(out)
         out = tf.keras.layers.Conv2D(d_model, 3, padding="same", activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(out)
 
         # remove last layer in the models
-        submodel = tf.keras.Model(inputs=[regression_submodel.inputs, classification_submodel.inputs], outputs=out)
+        submodel = tf.keras.Model(inputs=[regression_submodel.inputs, classification_submodel.inputs], outputs=[out, coatt_output_att_weights])  # output the coatt weight as well
 
         # compute the features
         features = [self.retinanet_model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5', 'P6', 'P7']]
@@ -304,4 +304,4 @@ class FeatureExtractor(tf.keras.layers.Layer):
         self.model = tf.keras.Model(self.retinanet_model.inputs, extracted_features)
 
     def call(self, inp):
-        return self.model(inp)
+            return self.model(inp)

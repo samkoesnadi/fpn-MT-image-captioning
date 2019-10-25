@@ -15,12 +15,17 @@ from random import shuffle
 def calc_max_length(tensor):
     return max(len(t) for t in tensor)
 
-
-def load_image(img_path, caption):
+def load_image(img_path):
 	# load image
 	img = tf.io.read_file(img_path)
 	img = tf.image.decode_jpeg(img, channels=3)
 	img = tf.image.resize(img, (IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE))
+
+	return img
+
+def load_image_and_preprocess(img_path, caption):
+	# load image
+	img = load_image(img_path)
 	img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
 
 	return img, caption
@@ -87,7 +92,7 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 
 	# Feel free to change batch_size according to your system configuration
 	image_dataset = tf.data.Dataset.from_tensor_slices((img_paths, captions_token))
-	image_dataset = image_dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+	image_dataset = image_dataset.map(load_image_and_preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 	image_dataset = image_dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
 	image_dataset = image_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
@@ -185,7 +190,7 @@ def get_coco_images_captions_generator(dataDir, dataType):
 
 		imgs = coco.loadImgs(imgId)
 		img_path = os.path.join(dataDir, "images", dataType, imgs[0]["file_name"])
-		img, _ = load_image(img_path, None)
+		img, _ = load_image_and_preprocess(img_path, None)
 
 		yield img, captions_token
 
@@ -238,7 +243,7 @@ class COCO_Images_ImageID:
 
 		imgs = self.coco.loadImgs(imgId)
 		img_path = os.path.join(self.dataDir, "images", self.dataType, imgs[0]["file_name"])
-		img, _ = load_image(img_path, None)
+		img, _ = load_image_and_preprocess(img_path, None)
 
 		self.iterIndex += 1  # increment iterIndex
 

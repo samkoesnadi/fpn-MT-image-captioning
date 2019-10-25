@@ -273,7 +273,11 @@ class Encoder(tf.keras.layers.Layer):
 		"""
 
 		# extract the feature by RetinaNet. output size will be (5, batch, height, width, d_model)
-		x = self.feature_extractor(x)
+		x_w_att = self.feature_extractor(x)
+
+		# seperate between the coatt_weights and output
+		x = [x_[0] for x_ in x_w_att]
+		coatt_weights = [x_[1] for x_ in x_w_att]  # shape=(NUM_OF_PYRAMIDS, batch, height, width, 1)
 
 		# put the baseline at the back
 		x = [x[i] for i in self.x_order]
@@ -300,7 +304,7 @@ class Encoder(tf.keras.layers.Layer):
 
 		out = x[NUM_OF_PYRAMIDS-1]
 
-		return out  # (batch_size, baseline length, d_model)
+		return out, coatt_weights  # (batch_size, baseline length, d_model), (NUM_OF_PYRAMIDS, batch, height, width, 1)
 
 
 class Decoder(tf.keras.layers.Layer):
@@ -358,7 +362,7 @@ class Transformer(tf.keras.Model):
 
 	def call(self, inp, tar, training, look_ahead_mask):
 		if training:  # IMPORTANT: if training, then preprocess the image multiple time (because of the sequence length), otherwise please preprocess the image before calling this Transformer model
-			enc_output = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
+			enc_output, _ = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
 		else:  # this is to speed up inference time, so put the encoder preprocessed outside of the Transformer
 			enc_output = inp
 

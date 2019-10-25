@@ -6,6 +6,7 @@ import os
 IS_TRAINING = True
 
 USE_GPU = True
+LOG_ATTENTION = True  # to output the attention layers as well
 
 LOGGING_LEVEL = logging.DEBUG
 
@@ -51,6 +52,7 @@ RETINANET_WEIGHT_PATH = "model_weights/mobilenet224_1.0_coco.h5"  # autoencoder 
 TRANSFORMER_WEIGHT_PATH = "model_weights/multimodal_transformer.h5"  # transformer trai
 TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/multimodal_transformer"
 RESULT_FILE = "results/" + DATATYPE_VAL + "_captions_result.json"
+PLOT_RESULT_FOLDER = "results/plots/"
 
 ### Set Hyperparameters for Transformer
 num_layers = 6
