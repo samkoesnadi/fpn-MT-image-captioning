@@ -3,14 +3,14 @@ import tensorflow as tf
 import os
 
 
-IS_TRAINING = True
+IS_TRAINING = False
 
 USE_GPU = True
-LOG_ATTENTION = True  # to output the attention layers as well
+LOG_ATTENTION = False  # to output the attention layers as well
 
 LOGGING_LEVEL = logging.DEBUG
 
-TOP_K = 10000  # this is for tokenizer
+TOP_K = 2 ** 13  # this is for tokenizer
 
 ACTIVATION = tf.nn.leaky_relu
 KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
@@ -46,7 +46,7 @@ DATATYPE_TRAIN = 'train2017'
 
 
 # filenames
-TOKENIZER_FILENAME = "datasets/_tokenizer.json"
+TOKENIZER_FILENAME = "datasets/_tokenizer"
 ADDITIONAL_FILENAME = "datasets/_additional_extractor.json"
 RETINANET_WEIGHT_PATH = "model_weights/mobilenet224_1.0_coco.h5"  # autoencoder trained on pix2code datasets
 TRANSFORMER_WEIGHT_PATH = "model_weights/multimodal_transformer.h5"  # transformer trai
@@ -69,7 +69,7 @@ NUM_OF_PYRAMIDS = 5
 N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the submodules
 
 # MT-UMV-Encoder
-BASELINE_INDEX = 3  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1
+BASELINE_INDEX = 2  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
 
 logging.basicConfig(level=LOGGING_LEVEL)

@@ -11,6 +11,7 @@ import shutil
 
 if __name__ == "__main__":
 	IMAGE_FILE_PATH = "test_2.jpg"
+	imgId = 0
 
 	max_seq_len = load_additional_info(ADDITIONAL_FILENAME)["max_seq_len"]
 	master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len)  # master pipeline
@@ -20,7 +21,12 @@ if __name__ == "__main__":
 
 	# load image from file
 	img = load_image(IMAGE_FILE_PATH)
-	results, attention_weights, coatt_weights = master.evaluate_img(img, max_seq_len)
+	result, attention_weights, coatt_weights = master.evaluate_img(img, max_seq_len)
+
+	results = [{
+		"image_id": imgId,
+		"caption": result
+	}]
 
 	# save the results to file to be evaluated by COCO library
 	test_file_name = IMAGE_FILE_PATH.split('.')[0]

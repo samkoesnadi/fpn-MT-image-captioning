@@ -11,6 +11,7 @@ from pycocoevalcap.eval import COCOEvalCap
 from pathlib import Path
 from random import shuffle
 
+
 # Find the maximum length of any caption in our dataset
 def calc_max_length(tensor):
     return max(len(t) for t in tensor)
@@ -22,6 +23,11 @@ def load_image(img_path):
 	img = tf.image.resize(img, (IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE))
 
 	return img
+
+def tokenizer_encode(tokenizer, captions):
+	captions_token = [[tokenizer.vocab_size] + tokenizer.encode(caption) + [tokenizer.vocab_size + 1] for caption in captions]  # vocab_size is <start> and vocab_size+1 is <end>
+
+	return captions_token
 
 def load_image_and_preprocess(img_path, caption):
 	# load image
@@ -53,103 +59,49 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 
 	anns = coco.loadAnns(annIds)
 	anns = list(filter(lambda ann: ann["caption"] != ' ', anns))  # filter out empty data caption
-	captions = ["<start> " + ann["caption"] + " <end>" for ann in anns]  # also put the start and end token
+	captions = [ann["caption"] for ann in anns]  # also put the start and end token
 	imgIds = [ann["image_id"] for ann in anns]
 
 	tokenizer_file = Path(TOKENIZER_FILENAME)
 	if tokenizer_file.is_file():
-		tokenizer = load_tokenizer_from_path(tokenizer_file)
+		tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(TOKENIZER_FILENAME)
 
 		print("Tokenizer is loaded from", tokenizer_file)
 	else:
 		# preprocess captions into token
-		tokenizer = tf.keras.preprocessing.text.Tokenizer(num_words=TOP_K,
-		                                                  oov_token="unk",
-		                                                  filters='!"#$%&()*+-/:;=?@[\]^_`{|}~ ')
-		tokenizer.fit_on_texts(captions)
+		tokenizer = tfds.features.text.SubwordTextEncoder.build_from_corpus(captions, target_vocab_size=TOP_K)
 
-		# put padding in the dictionary
-		tokenizer.word_index[''] = 0
-		tokenizer.index_word[0] = ''
-
-		store_tokenizer_to_path(tokenizer, TOKENIZER_FILENAME)
+		# store the tokenizer
+		tokenizer.save_to_file(TOKENIZER_FILENAME)
 
 	# preprocess the captions to seperate ',' and '.' from words
 	captions = [re.sub(r'([.,])', r" \1 ", caption) for caption in captions]
 
 	# convert captions to sequences
-	captions_token = tokenizer.texts_to_sequences(captions)
+	captions_token = tokenizer_encode(tokenizer, captions)
 
 	set_len = math.ceil(len(captions_token) / BATCH_SIZE)
 	max_seq_len = max(map(len, captions_token))
 
-	# Pad each vector to the max_length of the captions
-	# If you do not provide a max_length value, pad_sequences calculates it automatically
-	captions_token = tf.keras.preprocessing.sequence.pad_sequences(captions_token, padding='post')
+	# # Pad each vector to the max_length of the captions
+	# # If you do not provide a max_length value, pad_sequences calculates it automatically
+	# captions_token = tf.keras.preprocessing.sequence.pad_sequences(captions_token, padding='post')
 
 	imgs = coco.loadImgs(imgIds)
 	img_paths = [os.path.join(dataDir, "images", dataType, img["file_name"]) for img in imgs]
 
+	# generator for input to dataset
+	def dataset_generator():
+		for (img_path, caption_token) in zip(img_paths, captions_token):
+			yield (img_path, caption_token)
+
 	# Feel free to change batch_size according to your system configuration
-	image_dataset = tf.data.Dataset.from_tensor_slices((img_paths, captions_token))
+	image_dataset = tf.data.Dataset.from_generator(dataset_generator, output_types=(tf.string, tf.float32), output_shapes=(tf.TensorShape([]), tf.TensorShape([None]))).repeat()
 	image_dataset = image_dataset.map(load_image_and_preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-	image_dataset = image_dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
+	image_dataset = image_dataset.shuffle(BUFFER_SIZE).padded_batch(BATCH_SIZE, padded_shapes=([None, None, None], [-1]))  # shuffle and batch with length of padding according to the the batch
 	image_dataset = image_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
 	return image_dataset, max_seq_len, set_len
-
-def _tokenizer_from_json(json_string):
-    """Parses a JSON tokenizer configuration file and returns a
-    tokenizer instance.
-    # Arguments
-        json_string: JSON string encoding a tokenizer configuration.
-    # Returns
-        A Keras Tokenizer instance
-    """
-    tokenizer_config = json.loads(json_string)
-    config = tokenizer_config.get('config')
-
-    word_counts = json.loads(config.pop('word_counts'))
-    word_docs = json.loads(config.pop('word_docs'))
-    index_docs = json.loads(config.pop('index_docs'))
-    # Integer indexing gets converted to strings with json.dumps()
-    index_docs = {int(k): v for k, v in index_docs.items()}
-    index_word = json.loads(config.pop('index_word'))
-    index_word = {int(k): v for k, v in index_word.items()}
-    word_index = json.loads(config.pop('word_index'))
-
-    tokenizer = tf.keras.preprocessing.text.Tokenizer(**config)
-    tokenizer.word_counts = word_counts
-    tokenizer.word_docs = word_docs
-    tokenizer.index_docs = index_docs
-    tokenizer.word_index = word_index
-    tokenizer.index_word = index_word
-
-    return tokenizer
-
-def load_tokenizer_from_path(path):
-	"""
-
-	:param path:
-	:return:
-	"""
-	with open(path) as f:
-		data = json.load(f)
-		tokenizer = _tokenizer_from_json(data)
-
-	return tokenizer
-
-def store_tokenizer_to_path(tokenizer, path):
-	"""
-
-	:param tokenizer: Tokenizer object to be stored
-	:param path: designated path for it
-	:return:
-	"""
-	tokenizer_json = tokenizer.to_json()
-	with open(path, 'w', encoding='utf-8') as f:
-		f.write(json.dumps(tokenizer_json, ensure_ascii=False))
-
 
 def get_coco_images_captions_generator(dataDir, dataType):
 	"""
@@ -171,7 +123,7 @@ def get_coco_images_captions_generator(dataDir, dataType):
 	# initialize tokenizer
 	tokenizer_file = Path(TOKENIZER_FILENAME)
 	if tokenizer_file.is_file():
-		tokenizer = load_tokenizer_from_path(tokenizer_file)
+		tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(TOKENIZER_FILENAME)
 
 		print("Tokenizer is loaded from", tokenizer_file)
 	else:
@@ -184,9 +136,9 @@ def get_coco_images_captions_generator(dataDir, dataType):
 
 		anns = coco.loadAnns(annIds)
 		anns = list(filter(lambda ann: ann["caption"] != ' ', anns))  # filter out empty data caption
-		captions = ["<start> " + ann["caption"] + " <end>" for ann in anns]  # also put the start and end token
+		captions = [ann["caption"] for ann in anns]  # also put the start and end token
 
-		captions_token = tokenizer.texts_to_sequences(captions)
+		captions_token = tokenizer_encode(tokenizer, captions)
 
 		imgs = coco.loadImgs(imgId)
 		img_path = os.path.join(dataDir, "images", dataType, imgs[0]["file_name"])

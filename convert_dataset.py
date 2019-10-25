@@ -66,6 +66,13 @@ def convert_store_format_to_coco(list_of_files, parentDir_string, image_dir, dat
 			findings = '' if findings is None else findings
 			impression = '' if impression is None else impression
 
+			# caption
+			caption = impression + ' ' + findings
+
+			# filter the caption
+			caption = re.sub(r'[.](\s*[.])+', '.', caption)  # filter double punctuation
+			caption = re.sub(r'\d\s*[.]', '', caption)  # filter number, then dot
+
 			# iterate through the image and write
 			for imgPath in root.findall("./parentImage"):
 				imgPath = imgPath.attrib["id"] + ".png"
@@ -82,7 +89,7 @@ def convert_store_format_to_coco(list_of_files, parentDir_string, image_dir, dat
 				annotation = {
 					"image_id": imgId,
 					"id": annotationId,
-					"caption": (impression + ' ' + findings)
+					"caption": caption
 				}
 
 				licenses_list.append(license)

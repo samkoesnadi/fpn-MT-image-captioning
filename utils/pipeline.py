@@ -11,12 +11,12 @@ class Pipeline():
 	"""
 	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len, start_epoch_acc=0.):
 		# load tokenizer
-		self.tokenizer = load_tokenizer_from_path(tokenizer_filename)
+		self.tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(tokenizer_filename)
 		self.metric_eval = MetricEval(DATADIR, DATATYPE_VAL)
 
 		self.max_seq_len = max_seq_len
 
-		self.target_vocab_size = len(self.tokenizer.index_word)  # the total length of index
+		self.target_vocab_size = self.tokenizer.vocab_size + 2  # the total length of index + 2 because of start and end token
 		input_vocab_size = math.ceil(IMAGE_INPUT_SIZE / 16) ** 2  # the input vocab size is the last dimension from Feature Extractor, i.e. if the input is 512, max input_vocab_size would be 32*32
 
 		# instance of Transformer
@@ -61,7 +61,7 @@ class Pipeline():
 	# tensors. TODO if possible: To avoid re-tracing due to the variable sequence lengths or variable
 	# batch sizes (the last batch is smaller), use input_signature to specify
 	# more generic shapes.
-	@tf.function
+	@tf.function(input_signature=(tf.TensorSpec(shape=(BATCH_SIZE, IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 3), dtype=tf.float32),tf.TensorSpec(shape=[BATCH_SIZE, None], dtype=tf.float32)))
 	def train_step(self, img, caption_token):
 		tar_inp = caption_token[:, :-1]
 		tar_real = caption_token[:, 1:]
@@ -79,15 +79,15 @@ class Pipeline():
 
 		self.train_loss(loss)
 
-	def predict(self, img, max_seq_len, plot_layer=False):
+	def predict(self, img, max_seq_len):
 		"""
 
 		:param plot_layer: Boolean to plot the intermediate layers
 		:param img: (height, width, 3)
 		:return: beam_result, attention_weights, coatt_weights ... attention_weights are from the decoder, coatt_weights from RetinaNet in the encoder
 		"""
-		start_token = self.tokenizer.word_index['<start>']
-		end_token = self.tokenizer.word_index['<end>']
+		start_token = self.tokenizer.vocab_size
+		end_token = self.tokenizer.vocab_size + 1
 
 		# preprocessing
 		img_expand_dims = tf.expand_dims(img, 0)
@@ -165,8 +165,7 @@ class Pipeline():
 		total_iter = AMOUNT_OF_VALIDATION if N_VAL_DATASET is None else N_VAL_DATASET
 
 		for (img, imgId) in tqdm(generator, total=total_iter):
-			result = self.predict(img, max_seq_len)[0]
-			result = self.tokenizer.sequences_to_texts([result.numpy()])[0]
+			result, _, _ = self.evaluate_img(img, max_seq_len)
 			results.append({
 				"image_id": imgId,
 				"caption": result
@@ -174,69 +173,15 @@ class Pipeline():
 
 		return results
 
-	def evaluate_img(self, img, max_seq_len, imgId=0):
+	def evaluate_img(self, img, max_seq_len):
 		"""
 
 		:param max_seq_len:
-		:param generator: dataset generator
+		:param img: single image
 		:return: list of result for the whole generator dataset
 		"""
-		results = []
 
 		result, attention_weights, coatt_weights = self.predict(img, max_seq_len)
-		result = self.tokenizer.sequences_to_texts([result.numpy()])[0]
-		results.append({
-			"image_id": imgId,
-			"caption": result
-		})
+		result = self.tokenizer.decode(result.numpy())
 
-		return results, attention_weights, coatt_weights
-
-	def plot_attention_weights(self, attention, input, caption_token, layer, filename, max_len=10):
-		"""
-
-		:param max_len: maximum length for sequence of input and sxn_result. Keep this to small value
-		:param attention:
-		:param input: (49)
-		:param result: sxn token (seq_len_of_sxn_token)
-		:param layer:
-		:return:
-		"""
-		fig = plt.figure(figsize=(16, 8))
-
-		attention = tf.squeeze(attention[layer], axis=0)
-
-		# Truncate length to max_len
-		attention = tf.slice(attention, [0, 0, 0], [-1, max_len, max_len])  # slice the tensor
-		input = input[:max_len]
-		caption_token = caption_token[:max_len]
-
-		# temp var
-		row = math.ceil(attention.shape[0] ** .5)
-
-		for head in range(attention.shape[0]):
-			ax = fig.add_subplot(row, row, head + 1)
-
-			# plot the attention weights
-			ax.matshow(attention[head][:-1, :], cmap='viridis')
-
-			fontdict = {'fontsize': 10}
-
-			ax.set_xticks(range(len(input)))
-			ax.set_yticks(range(len(caption_token)))
-
-			ax.set_ylim(len(caption_token) - 1.5, -0.5)
-
-			ax.set_xticklabels(
-				list(map(str, input)),
-				fontdict=fontdict, rotation=90)
-
-			ax.set_yticklabels(
-				list(map(lambda i: self.tokenizer.index_word[i], caption_token)),
-				fontdict=fontdict)
-
-			ax.set_xlabel('Head {}'.format(head + 1))
-
-		plt.tight_layout()
-		plt.savefig(filename)
-		plt.close()
+		return result, attention_weights, coatt_weights
