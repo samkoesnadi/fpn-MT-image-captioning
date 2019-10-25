@@ -15,13 +15,22 @@ if __name__ == "__main__":
 
 	additional_info = load_additional_info(ADDITIONAL_FILENAME)
 
+	# keys of additional_info needed
 	key_epoch = "mt_epoch_" + os.path.basename(
 		TRANSFORMER_CHECKPOINT_PATH)  # the key name in additional info for prev epoch
+	key_epoch_acc = "mt_epoch_accuracy_" + os.path.basename(
+		TRANSFORMER_CHECKPOINT_PATH)
 
 	if IS_TRAINING:
 		train_datasets, max_seq_len, train_set_len = get_coco_images_dataset(DATADIR, DATATYPE_TRAIN, N_TRAIN_DATASET)
 
-		master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len)  # master pipeline
+		# get the beginning accuracy if available (for SmartCheckpointSaver)
+		if key_epoch_acc in additional_info:
+			start_epoch_acc = additional_info[key_epoch_acc]
+		else:
+			start_epoch_acc = 0.
+
+		master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len, start_epoch_acc)  # master pipeline
 
 		# store the max_seq_len to additional_info as for testing purpose you would not create train_datasets
 		additional_info["max_seq_len"] = max_seq_len
@@ -85,8 +94,9 @@ if __name__ == "__main__":
 							start_epoch = epoch
 							break
 						elif should_break == 1:
-							# store last epoch
+							# store last epoch step and accuracy
 							additional_info[key_epoch] = master.smart_ckpt_saver.max_acc_epoch
+							additional_info[key_epoch_acc] = cider
 							store_additional_info(additional_info, ADDITIONAL_FILENAME)
 
 			print()

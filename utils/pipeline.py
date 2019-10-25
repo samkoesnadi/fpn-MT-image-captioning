@@ -9,7 +9,7 @@ class Pipeline():
 	"""
 	The main class that runs shit
 	"""
-	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len):
+	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len, start_epoch_acc=0.):
 		# load tokenizer
 		self.tokenizer = load_tokenizer_from_path(tokenizer_filename)
 		self.metric_eval = MetricEval(DATADIR, DATATYPE_VAL)
@@ -40,7 +40,7 @@ class Pipeline():
 
 		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=100)
 
-		self.smart_ckpt_saver = SmartCheckpointSaver(self.ckpt_manager)
+		self.smart_ckpt_saver = SmartCheckpointSaver(self.ckpt_manager, start_epoch_acc)
 
 		# if a checkpoint exists, restore the latest checkpoint.
 		if self.ckpt_manager.latest_checkpoint:

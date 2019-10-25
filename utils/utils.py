@@ -221,9 +221,9 @@ def weighted_loss(target, pred, loss_function, light_background=True):
 
 
 class SmartCheckpointSaver:
-	def __init__(self, ckpt_manager):
+	def __init__(self, ckpt_manager, max_val_acc=-np.inf):
 		self.ckpt_manager = ckpt_manager
-		self.max_val_acc = -np.inf  # max validation accuracy
+		self.max_val_acc = max_val_acc  # max validation accuracy
 		self.max_acc_epoch = 0  # the epoch in which we have the maximum accuracy
 
 	def __call__(self, curr_epoch, curr_val_acc):
@@ -235,7 +235,7 @@ class SmartCheckpointSaver:
 		"""
 
 		# just for beginning when max_val and max_acc is empty
-		if self.max_acc_epoch == 0:
+		if self.max_val_acc == -np.inf:
 			self.max_val_acc = curr_val_acc
 			self.max_acc_epoch = curr_epoch
 
