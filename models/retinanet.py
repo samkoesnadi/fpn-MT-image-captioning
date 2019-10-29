@@ -297,7 +297,7 @@ class FeatureExtractor(tf.keras.layers.Layer):
         submodel = tf.keras.Model(inputs=[regression_submodel.inputs, classification_submodel.inputs], outputs=[out, coatt_output_att_weights])  # output the coatt weight as well
 
         # compute the features
-        features = [self.retinanet_model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5', 'P6', 'P7']]
+        features = [self.retinanet_model.get_layer(p_name).output for p_name in ['P4', 'P5', 'P6', 'P7']]
         extracted_features = [submodel([feature, feature]) for feature in features]
 
         # build model out of extracted_features

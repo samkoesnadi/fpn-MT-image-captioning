@@ -68,7 +68,7 @@ num_heads = 8
 NUM_OF_CLASSES = 80
 NUM_OF_RETINANET_FILTERS = 256
 NUM_OF_ANCHORS = 9
-NUM_OF_PYRAMIDS = 5
+NUM_OF_PYRAMIDS = 4
 N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the submodules
 
 # MT-UMV-Encoder
