@@ -62,7 +62,7 @@ class Pipeline():
 	# batch sizes (the last batch is smaller), use input_signature to specify
 	# more generic shapes.
 	@tf.function(input_signature=(tf.TensorSpec(shape=(BATCH_SIZE, IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 3), dtype=tf.float32),tf.TensorSpec(shape=[BATCH_SIZE, None], dtype=tf.float32)))
-	def train_step(self, img, caption_token):
+	def train_step(self, img, caption_token):  # this one get the input from ground truth
 		tar_inp = caption_token[:, :-1]
 		tar_real = caption_token[:, 1:]
 
@@ -78,6 +78,16 @@ class Pipeline():
 		self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
 
 		self.train_loss(loss)
+
+	def scst_train_step(self, img, caption_token):
+		pass
+
+	def predict_batch(self, img, max_seq_len):
+		"""
+		Predict batch until the defined max_seq_len, this does not use BEAM_SIZE. Intended for SCST
+		:return:
+		"""
+
 
 	def predict(self, img, max_seq_len):
 		"""

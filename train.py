@@ -85,6 +85,9 @@ if __name__ == "__main__":
 						# print metric evaluation
 						cider = master.metric_eval(RESULT_FILE)
 
+						tf.summary.scalar('CIDEr', cider,
+						                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
+
 						# store each epoch's checkpoint when it is more or less stable already
 						ckpt_save_path = master.ckpt_manager.save()
 						print('Saving checkpoint for epoch {} at {}'.format(epoch+1,

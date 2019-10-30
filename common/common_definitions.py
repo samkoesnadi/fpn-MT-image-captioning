@@ -18,7 +18,7 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
 BATCH_SIZE = 10
-BUFFER_SIZE = 1000  # this is important for shuffling
+BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 100
 XE_EPOCHS = 15  # the amount of epoch cross entropy will go through
 BEAM_SEARCH_N = 4
@@ -67,10 +67,8 @@ num_heads = 8
 
 
 ### Set parameter for RetinaNet
-NUM_OF_CLASSES = 80
 NUM_OF_RETINANET_FILTERS = 256
-NUM_OF_ANCHORS = 9
-NUM_OF_PYRAMIDS = 4
+NUM_OF_PYRAMIDS = 3
 N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the submodules
 
 # MT-UMV-Encoder

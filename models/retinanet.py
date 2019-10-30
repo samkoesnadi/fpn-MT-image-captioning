@@ -107,7 +107,7 @@ def __create_pyramid_features(C4, C5, feature_size=256):
         feature_size : The feature size to use for the resulting feature levels.
 
     Returns
-        A list of feature levels [P4, P5, P6, P7].
+        A list of feature levels [P4, P5, P6].
     """
     # upsample C5 to get P5 from the FPN paper
     P5_feature_size           = tf.keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same', name='C5_reduced')(C5)
@@ -123,11 +123,7 @@ def __create_pyramid_features(C4, C5, feature_size=256):
     P6 = tf.keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', activation=ACTIVATION)(P5_feature_size)
     P6 = tf.keras.layers.MaxPooling2D(name='P6')(P6)
 
-    # "P7 is computed by applying ReLU followed by a 3x3 stride-2 conv on P6"
-    P7 = tf.keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', activation=ACTIVATION)(P6)
-    P7 = tf.keras.layers.MaxPooling2D(name='P7')(P7)
-
-    return [P4, P5, P6, P7]
+    return [P4, P5, P6]
 
 
 def default_submodels():
@@ -283,7 +279,7 @@ class FeatureExtractor(tf.keras.layers.Layer):
         submodel = tf.keras.Model(inputs=[regression_submodel.inputs, classification_submodel.inputs], outputs=[out, coatt_output_att_weights])  # output the coatt weight as well
 
         # compute the features
-        features = [self.retinanet_model.get_layer(p_name).output for p_name in ['P4', 'P5', 'P6', 'P7']]
+        features = [self.retinanet_model.get_layer(p_name).output for p_name in ['P4', 'P5', 'P6']]
         extracted_features = [submodel([feature, feature]) for feature in features]
 
         # build model out of extracted_features
