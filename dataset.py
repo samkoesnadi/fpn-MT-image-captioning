@@ -52,6 +52,18 @@ def load_image_and_preprocess(img_path, caption, augmentation=None):
 
 	return img, caption
 
+def get_captions_from_anns(anns):
+	"""
+	Get the captions from anns of the COCO formatted dataset
+	:param anns:
+	:return:
+	"""
+	captions = [ann["caption"].lower() for ann in anns]  # also put the start and end token, IMPORTANT! Lower case as the dataset
+
+	# preprocess the captions to seperate ',' and '.' from words
+	captions = [re.sub(r'([.,])', r" \1 ", caption) for caption in captions]
+
+	return captions
 
 def get_coco_images_dataset(dataDir, dataType, n_test=None):
 	"""
@@ -75,7 +87,7 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 
 	anns = coco.loadAnns(annIds)
 	anns = list(filter(lambda ann: ann["caption"] != ' ', anns))  # filter out empty data caption
-	captions = [ann["caption"] for ann in anns]  # also put the start and end token
+	captions = get_captions_from_anns(anns)
 	imgIds = [ann["image_id"] for ann in anns]
 
 	tokenizer_file = Path(TOKENIZER_FILENAME)
@@ -89,9 +101,6 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 
 		# store the tokenizer
 		tokenizer.save_to_file(TOKENIZER_FILENAME)
-
-	# preprocess the captions to seperate ',' and '.' from words
-	captions = [re.sub(r'([.,])', r" \1 ", caption) for caption in captions]
 
 	# convert captions to sequences
 	captions_token = tokenizer_encode(tokenizer, captions)
@@ -160,7 +169,7 @@ def get_coco_images_captions_generator(dataDir, dataType):
 
 		anns = coco.loadAnns(annIds)
 		anns = list(filter(lambda ann: ann["caption"] != ' ', anns))  # filter out empty data caption
-		captions = [ann["caption"] for ann in anns]  # also put the start and end token
+		captions = get_captions_from_anns(anns)
 
 		captions_token = tokenizer_encode(tokenizer, captions)
 

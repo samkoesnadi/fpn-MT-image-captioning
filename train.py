@@ -47,7 +47,7 @@ if __name__ == "__main__":
 			if key_epoch in additional_info:
 				start_epoch = additional_info[key_epoch]
 			else:
-				start_epoch = additional_info["transformer_epoch"]
+				start_epoch = 0
 
 		# give a gap
 		print()
@@ -92,6 +92,9 @@ if __name__ == "__main__":
 						ckpt_save_path = master.ckpt_manager.save()
 						print('Saving checkpoint for epoch {} at {}'.format(epoch+1,
 						                                                    ckpt_save_path))
+						additional_info[key_epoch] = master.smart_ckpt_saver.max_acc_epoch
+						additional_info[key_epoch_acc] = cider
+						store_additional_info(additional_info, ADDITIONAL_FILENAME)
 
 			print()
 

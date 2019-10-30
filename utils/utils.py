@@ -146,7 +146,7 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 		self.multiplier = multiplier
 
 	def __call__(self, step):
-		arg1 = tf.math.rsqrt(step) / tf.maximum((step - self.warmup_steps) * self.multiplier / (self.warmup_steps * 2), 1)
+		arg1 = tf.math.rsqrt(step) / tf.maximum((step - self.warmup_steps) * self.multiplier / (self.warmup_steps * 4), 1)
 		# arg1 = tf.math.rsqrt(step) * self.warmup_steps
 		arg2 = step * (self.warmup_steps ** -1.5)
 

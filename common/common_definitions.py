@@ -20,11 +20,12 @@ IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinane
 BATCH_SIZE = 10
 BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 100
-XE_EPOCHS = 15  # the amount of epoch cross entropy will go through
+XE_EPOCHS = 20  # the amount of epoch cross entropy will go through
 BEAM_SEARCH_N = 4
-N_VAL_DATASET = None  # the number of dataset to be validated
+N_VAL_DATASET = 50  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
 N_EPOCH_TO_EVALUATE = 1  # rythm of the epoch to evaluate and save checkpoint
+MAX_EVAL_TIME = 180 # maximum evaluation time in seconds
 AMOUNT_OF_VALIDATION = 100  # used for convert_dataset
 DROPOUT_RATE = 0.1
 
@@ -53,7 +54,7 @@ DATATYPE_TRAIN = 'train2017'
 # filenames
 TOKENIZER_FILENAME = "datasets/_tokenizer"
 ADDITIONAL_FILENAME = "datasets/_additional_extractor.json"
-RETINANET_WEIGHT_PATH = None  # autoencoder trained on pix2code datasets
+RETINANET_WEIGHT_PATH = "model_weights/mobilenet224_1.0_coco.h5"  # autoencoder trained on pix2code datasets
 TRANSFORMER_WEIGHT_PATH = "model_weights/multimodal_transformer.h5"  # transformer trai
 TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/multimodal_transformer"
 RESULT_FILE = "results/" + DATATYPE_VAL + "_captions_result.json"
@@ -68,11 +69,11 @@ num_heads = 8
 
 ### Set parameter for RetinaNet
 NUM_OF_RETINANET_FILTERS = 256
-NUM_OF_PYRAMIDS = 3
+NUM_OF_PYRAMIDS = 5
 N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the submodules
 
 # MT-UMV-Encoder
-BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
+BASELINE_INDEX = 2  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
 
 logging.basicConfig(level=LOGGING_LEVEL)

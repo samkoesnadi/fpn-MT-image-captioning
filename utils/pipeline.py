@@ -19,11 +19,9 @@ class Pipeline():
 		self.target_vocab_size = self.tokenizer.vocab_size + 2  # the total length of index + 2 because of start and end token
 		input_vocab_size = math.ceil(IMAGE_INPUT_SIZE / 16) ** 2  # the input vocab size is the last dimension from Feature Extractor, i.e. if the input is 512, max input_vocab_size would be 32*32
 
-		# instance of Transformer
+		# instance of Transformers
 		self.transformer = Transformer(num_layers, d_model, num_heads, dff,
 		                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
-
-
 
 		# define optimizer and loss
 		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS)
@@ -80,14 +78,54 @@ class Pipeline():
 		self.train_loss(loss)
 
 	def scst_train_step(self, img, caption_token):
-		pass
+		tar_inp = caption_token[:, :-1]
+		tar_real = caption_token[:, 1:]
 
+		predict_batch(img, )
+
+	@tf.function
 	def predict_batch(self, img, max_seq_len):
 		"""
 		Predict batch until the defined max_seq_len, this does not use BEAM_SIZE. Intended for SCST
 		:return:
 		"""
 
+		# define start token and end token
+		start_token = self.tokenizer.vocab_size
+		end_token = self.tokenizer.vocab_size + 1
+
+		img_shape = tf.shape(img)  # shape of the image
+
+		# preprocessing
+		encoder_output, coatt_weights = self.transformer.encoder(img, False, None)  # (batch_size, inp_seq_len, d_model)
+
+		# first word is start token
+		decoder_input = [start_token]
+		output = tf.broadcast_to(decoder_input, (img_shape[0], 1))
+		output = tf.concat([output, tf.zeros((img_shape[0], max_seq_len+1), tf.int32)], axis=-1)  # add zeros in the end
+		# output_wo_endtoken = tf.broadcast_to(decoder_input, (img_shape[0], 1))  # output that does not contain end_token inside
+
+		for i_seq in tf.range(1, max_seq_len + 1):
+			_masks = create_masks(output)
+
+			# predictions.shape == (batch_size, seq_len, vocab_size)
+			predictions, _ = self.transformer(encoder_output, output, False, _masks)
+
+			# select the last word from the seq_len dimension
+			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
+
+			predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
+
+			# concatentate the predicted_id to the output which is given to the decoder
+			# as its input.
+			output = tf.concat([output[:, :i_seq], predicted_id, tf.zeros([img_shape[0], max_seq_len - i_seq], tf.int32)], axis=-1)
+
+
+			# # predicted id without end token
+			# predicted_id_wo_endtoken = tf.map_fn(lambda x: 0 if x == end_token else x, predicted_id)  # TODO: filter the end token and turn it to padding
+			# output_wo_endtoken = tf.concat([output_wo_endtoken, predicted_id_wo_endtoken], axis=-1)
+
+		return tf.cast(output[:, 1:], tf.int32)  # no start token inside, end token is still inside
 
 	def predict(self, img, max_seq_len):
 		"""
@@ -172,7 +210,10 @@ class Pipeline():
 		"""
 		results = []
 
-		total_iter = AMOUNT_OF_VALIDATION if N_VAL_DATASET is None else N_VAL_DATASET
+		total_iter = generator.max_len
+
+		# give time limit here
+		time_start = time.time()
 
 		for (img, imgId) in tqdm(generator, total=total_iter):
 			result, _, _ = self.evaluate_img(img, max_seq_len)
@@ -180,6 +221,11 @@ class Pipeline():
 				"image_id": imgId,
 				"caption": result
 			})
+
+			# if the time surpasses the limit then break the for loop
+			if time.time() > time_start + MAX_EVAL_TIME:
+				print("Time surparses eval time limit")
+				break
 
 		return results
 
