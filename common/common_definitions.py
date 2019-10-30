@@ -20,8 +20,9 @@ IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinane
 BATCH_SIZE = 10
 BUFFER_SIZE = 1000  # this is important for shuffling
 EPOCHS = 100
+XE_EPOCHS = 10  # the amount of epoch cross entropy will go through
 BEAM_SEARCH_N = 4
-N_VAL_DATASET = 50  # the number of dataset to be validated
+N_VAL_DATASET = None  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
 N_EPOCH_TO_EVALUATE = 1  # rythm of the epoch to evaluate and save checkpoint
 AMOUNT_OF_VALIDATION = 100  # used for convert_dataset
@@ -31,6 +32,7 @@ DROPOUT_RATE = 0.1
 P_AUGMENTATION = 0.5
 
 MIN_EPOCH_TO_BREAK = EPOCHS // 2
+MIN_EPOCH_TO_EVAL = 5
 GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
 # INIT_LEARNING_RATE = 1e-4
 WARM_UP_STEPS = 4000  # for scheduler
@@ -51,7 +53,7 @@ DATATYPE_TRAIN = 'train2017'
 # filenames
 TOKENIZER_FILENAME = "datasets/_tokenizer"
 ADDITIONAL_FILENAME = "datasets/_additional_extractor.json"
-RETINANET_WEIGHT_PATH = "model_weights/mobilenet224_1.0_coco.h5"  # autoencoder trained on pix2code datasets
+RETINANET_WEIGHT_PATH = None  # autoencoder trained on pix2code datasets
 TRANSFORMER_WEIGHT_PATH = "model_weights/multimodal_transformer.h5"  # transformer trai
 TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/multimodal_transformer"
 RESULT_FILE = "results/" + DATATYPE_VAL + "_captions_result.json"

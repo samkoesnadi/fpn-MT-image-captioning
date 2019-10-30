@@ -40,7 +40,7 @@ class MobileNetBackbone(Backbone):
             raise ValueError('Backbone (\'{}\') not in allowed backbones ({}).'.format(backbone, MobileNetBackbone.allowed_backbones))
 
 
-def mobilenet_retinanet(num_classes, backbone='mobilenet224_1.0', inputs=None, modifier=None, **kwargs):
+def mobilenet_retinanet(backbone='mobilenet224_1.0', inputs=None, modifier=None, **kwargs):
     """ Constructs a retinanet model using a mobilenet backbone.
 
     Args
@@ -61,7 +61,8 @@ def mobilenet_retinanet(num_classes, backbone='mobilenet224_1.0', inputs=None, m
     backbone = tf.keras.applications.mobilenet_v2.MobileNetV2(input_tensor=inputs, alpha=alpha, include_top=False, pooling=None, weights=None)
 
     # create the full model
-    layer_names = ['block_5_add', 'block_12_add', 'out_relu']  # TODO: please check whether the name is correct or not
+    # layer_names = ['block_5_add', 'block_12_add', 'out_relu']  # this is C3, C4, C5
+    layer_names = ['block_12_add', 'out_relu']
     layer_outputs = [backbone.get_layer(name).output for name in layer_names]
     backbone = tf.keras.models.Model(inputs=inputs, outputs=layer_outputs, name=backbone.name)
 
@@ -69,4 +70,4 @@ def mobilenet_retinanet(num_classes, backbone='mobilenet224_1.0', inputs=None, m
     if modifier:
         backbone = modifier(backbone)
 
-    return retinanet.retinanet(inputs=inputs, num_classes=num_classes, backbone_layers=backbone.outputs, **kwargs)
+    return retinanet.retinanet(inputs=inputs, backbone_layers=backbone.outputs, **kwargs)

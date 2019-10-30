@@ -96,7 +96,12 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 	# convert captions to sequences
 	captions_token = tokenizer_encode(tokenizer, captions)
 
-	set_len = math.ceil(len(captions_token) / BATCH_SIZE)
+	captions_token_len = len(captions_token)
+
+	# set buffer size if BUFFER_SIZE = None
+	buffer_size = captions_token_len if BUFFER_SIZE is None else BUFFER_SIZE
+
+	set_len = math.ceil(captions_token_len / BATCH_SIZE)
 	max_seq_len = max(map(len, captions_token))
 
 	# # Pad each vector to the max_length of the captions
@@ -112,12 +117,12 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 			yield (img_path, caption_token)
 
 	# Feel free to change batch_size according to your system configuration
-	image_dataset = tf.data.Dataset.from_generator(dataset_generator, output_types=(tf.string, tf.float32), output_shapes=(tf.TensorShape([]), tf.TensorShape([None]))).repeat()
+	image_dataset = tf.data.Dataset.from_generator(dataset_generator, output_types=(tf.string, tf.float32), output_shapes=(tf.TensorShape([]), tf.TensorShape([None])))
 
 	# set augmentation
 	augmentation = _aug(p=P_AUGMENTATION)
 	image_dataset = image_dataset.map(lambda img, caption: load_image_and_preprocess(img, caption, augmentation), num_parallel_calls=tf.data.experimental.AUTOTUNE)  # load the image
-	image_dataset = image_dataset.shuffle(BUFFER_SIZE).padded_batch(BATCH_SIZE, padded_shapes=([None, None, None], [-1]))  # shuffle and batch with length of padding according to the the batch
+	image_dataset = image_dataset.shuffle(buffer_size).padded_batch(BATCH_SIZE, padded_shapes=([None, None, None], [-1]))  # shuffle and batch with length of padding according to the the batch
 	image_dataset = image_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
 	return image_dataset, max_seq_len, set_len

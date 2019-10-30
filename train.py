@@ -52,7 +52,8 @@ if __name__ == "__main__":
 		# give a gap
 		print()
 
-		for epoch in range(start_epoch, EPOCHS):
+		# XE training
+		for epoch in range(start_epoch, XE_EPOCHS):
 			master.train_loss.reset_states()
 
 			# print epoch i / n
@@ -71,7 +72,7 @@ if __name__ == "__main__":
 				                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
 
 
-				if (epoch + 1) % N_EPOCH_TO_EVALUATE == 0:
+				if (epoch + 1) % N_EPOCH_TO_EVALUATE == 0 and (epoch + 1) > MIN_EPOCH_TO_EVAL:
 					# evaluate
 					print("Evaluating...")
 					results = master.evaluate(iter(val_datasets), max_seq_len)
@@ -84,22 +85,62 @@ if __name__ == "__main__":
 						# print metric evaluation
 						cider = master.metric_eval(RESULT_FILE)
 
-						tf.summary.scalar('CIDEr', cider,
-						                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
-
-						# based on the cider determine early stopping
-						should_break = master.smart_ckpt_saver(epoch + 1,
-						                                       cider)  # this will be better if we use validation
-						if should_break == -1:
-							start_epoch = epoch
-							break
-						elif should_break == 1:
-							# store last epoch step and accuracy
-							additional_info[key_epoch] = master.smart_ckpt_saver.max_acc_epoch
-							additional_info[key_epoch_acc] = cider
-							store_additional_info(additional_info, ADDITIONAL_FILENAME)
+						# store each epoch's checkpoint when it is more or less stable already
+						ckpt_save_path = master.ckpt_manager.save()
+						print('Saving checkpoint for epoch {} at {}'.format(epoch+1,
+						                                                    ckpt_save_path))
 
 			print()
+
+		# SCST training
+		# for epoch in range(start_epoch, EPOCHS):
+		# 	master.train_loss.reset_states()
+		#
+		# 	# print epoch i / n
+		# 	print("Epoch", epoch + 1, '/', EPOCHS)
+		#
+		# 	# inp -> image, tar -> html
+		# 	with tqdm(train_datasets, total=train_set_len) as t:
+		# 		for (img, caption_token) in t:
+		# 			master.train_step(img, caption_token)
+		# 			t.set_postfix(loss=master.train_loss.result().numpy())
+		# 			t.update()
+		#
+		# 	# store loss and acc to tensorboard
+		# 	with train_summary_writer.as_default():
+		# 		tf.summary.scalar('loss', master.train_loss.result(),
+		# 		                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
+		#
+		#
+		# 		if (epoch + 1) % N_EPOCH_TO_EVALUATE == 0:
+		# 			# evaluate
+		# 			print("Evaluating...")
+		# 			results = master.evaluate(iter(val_datasets), max_seq_len)
+		#
+		# 			# save the results to file to be evaluated by COCO library
+		# 			with open(RESULT_FILE, 'w') as outfile:
+		# 				json.dump(results, outfile)
+		#
+		# 			if len(results) != 0:
+		# 				# print metric evaluation
+		# 				cider = master.metric_eval(RESULT_FILE)
+		#
+		# 				tf.summary.scalar('CIDEr', cider,
+		# 				                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
+		#
+		# 				# based on the cider determine early stopping
+		# 				should_break = master.smart_ckpt_saver(epoch + 1,
+		# 				                                       cider)  # this will be better if we use validation
+		# 				if should_break == -1:
+		# 					start_epoch = epoch
+		# 					break
+		# 				elif should_break == 1:
+		# 					# store last epoch step and accuracy
+		# 					additional_info[key_epoch] = master.smart_ckpt_saver.max_acc_epoch
+		# 					additional_info[key_epoch_acc] = cider
+		# 					store_additional_info(additional_info, ADDITIONAL_FILENAME)
+		#
+		# 	print()
 
 		print('Saving Transformer weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))
 		master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model

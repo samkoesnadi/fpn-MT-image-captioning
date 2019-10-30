@@ -4,7 +4,7 @@ from models import mobilenet
 
 if __name__ == "__main__":
 	input = tf.keras.layers.Input((IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 3))
-	model = mobilenet.mobilenet_retinanet(NUM_OF_CLASSES, backbone='mobilenet224_1.0', inputs=input)
+	model = mobilenet.mobilenet_retinanet(backbone='mobilenet224_1.0', inputs=input)
 
 	# load weight to model
 	model.load_weights('../../retinanet/snapshots/mobilenet224_1.0_coco_01.h5')
