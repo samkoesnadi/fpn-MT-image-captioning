@@ -58,7 +58,7 @@ class Pipeline():
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument
-	# tensors. TODO if possible: To avoid re-tracing due to the variable sequence lengths or variable
+	# tensors.
 	# batch sizes (the last batch is smaller), use input_signature to specify
 	# more generic shapes.
 	@tf.function(input_signature=(tf.TensorSpec(shape=(BATCH_SIZE, IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 3), dtype=tf.float32),tf.TensorSpec(shape=[BATCH_SIZE, None], dtype=tf.float32)))

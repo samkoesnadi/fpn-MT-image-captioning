@@ -20,7 +20,7 @@ IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinane
 BATCH_SIZE = 10
 BUFFER_SIZE = 1000  # this is important for shuffling
 EPOCHS = 100
-XE_EPOCHS = 10  # the amount of epoch cross entropy will go through
+XE_EPOCHS = 15  # the amount of epoch cross entropy will go through
 BEAM_SEARCH_N = 4
 N_VAL_DATASET = None  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
@@ -32,7 +32,7 @@ DROPOUT_RATE = 0.1
 P_AUGMENTATION = 0.5
 
 MIN_EPOCH_TO_BREAK = EPOCHS // 2
-MIN_EPOCH_TO_EVAL = 5
+MIN_EPOCH_TO_EVAL = 10
 GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
 # INIT_LEARNING_RATE = 1e-4
 WARM_UP_STEPS = 4000  # for scheduler
