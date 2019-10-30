@@ -98,7 +98,7 @@ def default_regression_model(pyramid_feature_size=256, regression_feature_size=2
     return tf.keras.models.Model(inputs=inputs, outputs=outputs, name=name)
 
 
-def __create_pyramid_features(C3, C4, C5, feature_size=256):
+def __create_pyramid_features(C4, C5, feature_size=256):
     """ Creates the FPN layers on top of the backbone features.
 
     Args
@@ -117,13 +117,7 @@ def __create_pyramid_features(C3, C4, C5, feature_size=256):
     # add P5 elementwise to C4
     P4           = tf.keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same', name='C4_reduced')(C4)
     P4           = tf.keras.layers.Add(name='P4_merged')([P5_upsampled, P4])
-    P4_upsampled = layers.UpsampleLike(name='P4_upsampled')([P4, C3])
     P4           = tf.keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P4', activation=ACTIVATION)(P4)
-
-    # add P4 elementwise to C3
-    P3 = tf.keras.layers.Conv2D(feature_size, kernel_size=1, strides=1, padding='same', name='C3_reduced')(C3)
-    P3 = tf.keras.layers.Add(name='P3_merged')([P4_upsampled, P3])
-    P3 = tf.keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', name='P3', activation=ACTIVATION)(P3)
 
     # "P6 is obtained via a 3x3 stride-2 conv on P5_feature_size"
     P6 = tf.keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', activation=ACTIVATION)(P5_feature_size)
@@ -133,7 +127,7 @@ def __create_pyramid_features(C3, C4, C5, feature_size=256):
     P7 = tf.keras.layers.Conv2D(feature_size, kernel_size=3, strides=1, padding='same', activation="relu")(P6)
     P7 = tf.keras.layers.MaxPooling2D(name='P7')(P7)
 
-    return [P3, P4, P5, P6, P7]
+    return [P4, P5, P6, P7]
 
 
 def default_submodels():
@@ -240,10 +234,10 @@ def retinanet(
     if submodels is None:
         submodels = default_submodels()
 
-    C3, C4, C5 = backbone_layers
+    C4, C5 = backbone_layers
 
     # compute pyramid features as per https://arxiv.org/abs/1708.02002
-    features = create_pyramid_features(C3, C4, C5)
+    features = create_pyramid_features(C4, C5)
 
     # for all pyramid levels, run available submodels
     pyramids = __build_pyramid(submodels, features)
@@ -287,7 +281,7 @@ class FeatureExtractor(tf.keras.layers.Layer):
         submodel = tf.keras.Model(inputs=[regression_submodel.inputs, classification_submodel.inputs], outputs=[out, coatt_output_att_weights])  # output the coatt weight as well
 
         # compute the features
-        features = [self.retinanet_model.get_layer(p_name).output for p_name in ['P3', 'P4', 'P5', 'P6', 'P7']]
+        features = [self.retinanet_model.get_layer(p_name).output for p_name in ['P4', 'P5', 'P6', 'P7']]
         extracted_features = [submodel([feature, feature]) for feature in features]
 
         # build model out of extracted_features

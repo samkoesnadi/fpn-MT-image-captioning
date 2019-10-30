@@ -81,7 +81,19 @@ class Pipeline():
 		tar_inp = caption_token[:, :-1]
 		tar_real = caption_token[:, 1:]
 
-		predict_batch(img, )
+		tar_real_shape = tf.shape(tar_real)  # shape of the target
+
+		# inference prediction's result
+		inf_predict_result = self.predict_batch(img, tf.constant(tar_real_shape[1]))
+		  # filter all <end token>
+
+		# training prediction's result
+		_mask = create_masks(tar_inp)
+		train_predict_result, _ = self.transformer(img, tar_inp,
+		                                  True,
+		                                  _mask)
+
+
 
 	@tf.function
 	def predict_batch(self, img, max_seq_len):
@@ -101,9 +113,11 @@ class Pipeline():
 
 		# first word is start token
 		decoder_input = [start_token]
-		output = tf.broadcast_to(decoder_input, (img_shape[0], 1))
-		output = tf.concat([output, tf.zeros((img_shape[0], max_seq_len+1), tf.int32)], axis=-1)  # add zeros in the end
-		# output_wo_endtoken = tf.broadcast_to(decoder_input, (img_shape[0], 1))  # output that does not contain end_token inside
+		_output = tf.broadcast_to(decoder_input, (img_shape[0], 1))
+		output = tf.concat([_output, tf.zeros((img_shape[0], max_seq_len + 1), tf.int32)],
+		                   axis=-1)  # add zeros in the end
+		# output_wo_endtoken = tf.concat([_output, tf.zeros((img_shape[0], max_seq_len + 1), tf.int32)],
+		#                    axis=-1)  # add zeros in the end, w/o end token
 
 		for i_seq in tf.range(1, max_seq_len + 1):
 			_masks = create_masks(output)
@@ -120,10 +134,9 @@ class Pipeline():
 			# as its input.
 			output = tf.concat([output[:, :i_seq], predicted_id, tf.zeros([img_shape[0], max_seq_len - i_seq], tf.int32)], axis=-1)
 
-
 			# # predicted id without end token
-			# predicted_id_wo_endtoken = tf.map_fn(lambda x: 0 if x == end_token else x, predicted_id)  # TODO: filter the end token and turn it to padding
-			# output_wo_endtoken = tf.concat([output_wo_endtoken, predicted_id_wo_endtoken], axis=-1)
+			# predicted_id_wo_endtoken = tf.map_fn(lambda x: 0 if x == end_token else x, predicted_id)  # filter the end token and turn it to padding
+			# output_wo_endtoken = tf.concat([output_wo_endtoken[:, :i_seq], predicted_id_wo_endtoken, tf.zeros([img_shape[0], max_seq_len - i_seq], tf.int32)], axis=-1)
 
 		return tf.cast(output[:, 1:], tf.int32)  # no start token inside, end token is still inside
 
