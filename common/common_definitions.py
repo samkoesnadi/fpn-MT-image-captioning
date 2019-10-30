@@ -72,7 +72,7 @@ NUM_OF_PYRAMIDS = 4
 N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the submodules
 
 # MT-UMV-Encoder
-BASELINE_INDEX = 2  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
+BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
 
 logging.basicConfig(level=LOGGING_LEVEL)
