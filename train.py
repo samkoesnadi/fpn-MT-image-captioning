@@ -22,7 +22,7 @@ if __name__ == "__main__":
 		TRANSFORMER_CHECKPOINT_PATH)
 
 	if IS_TRAINING:
-		train_datasets, max_seq_len, train_set_len = get_coco_images_dataset(DATADIR, DATATYPE_TRAIN, N_TRAIN_DATASET)
+		train_datasets, max_seq_len, train_set_len = get_coco_images_dataset(DATADIR, DATATYPE_TRAIN, N_TRAIN_DATASET, batch_size=XE_BATCH_SIZE)
 
 		# get the beginning accuracy if available (for SmartCheckpointSaver)
 		if key_epoch_acc in additional_info:
@@ -102,6 +102,10 @@ if __name__ == "__main__":
 
 		# SCST training
 		print("Start SCST Training")
+
+		# restart dataset with new batch
+		train_datasets, max_seq_len, train_set_len = get_coco_images_dataset(DATADIR, DATATYPE_TRAIN, N_TRAIN_DATASET, batch_size=BATCH_SIZE)
+
 		for epoch in range(start_epoch, EPOCHS):
 			master.train_loss.reset_states()
 			master.train_loss_scst_infer.reset_states()

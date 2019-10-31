@@ -78,7 +78,7 @@ class Pipeline():
 	# tensors.
 	# batch sizes (the last batch is smaller), use input_signature to specify
 	# more generic shapes.
-	@tf.function(input_signature=(tf.TensorSpec(shape=(BATCH_SIZE, IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 3), dtype=tf.float32),tf.TensorSpec(shape=[BATCH_SIZE, None], dtype=tf.float32)))
+	@tf.function(input_signature=(tf.TensorSpec(shape=(XE_BATCH_SIZE, IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 3), dtype=tf.float32),tf.TensorSpec(shape=[XE_BATCH_SIZE, None], dtype=tf.float32)))
 	def train_step(self, img, caption_token):  # this one get the input from ground truth
 		tar_inp = caption_token[:, :-1]
 		tar_real = caption_token[:, 1:]

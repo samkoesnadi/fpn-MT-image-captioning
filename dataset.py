@@ -65,7 +65,7 @@ def get_captions_from_anns(anns):
 
 	return captions
 
-def get_coco_images_dataset(dataDir, dataType, n_test=None):
+def get_coco_images_dataset(dataDir, dataType, n_test=None, batch_size=BATCH_SIZE):
 	"""
 	Get only images as datasets. This function is designed for autoencoder in image_feature_extract.py
 
@@ -110,7 +110,7 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 	# set buffer size if BUFFER_SIZE = None
 	buffer_size = captions_token_len if BUFFER_SIZE is None else BUFFER_SIZE
 
-	set_len = math.ceil(captions_token_len / BATCH_SIZE)
+	set_len = math.ceil(captions_token_len / batch_size)
 	max_seq_len = max(map(len, captions_token))
 
 	# # Pad each vector to the max_length of the captions
@@ -131,7 +131,7 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 	# set augmentation
 	augmentation = _aug(p=P_AUGMENTATION)
 	image_dataset = image_dataset.map(lambda img, caption: load_image_and_preprocess(img, caption, augmentation), num_parallel_calls=tf.data.experimental.AUTOTUNE)  # load the image
-	image_dataset = image_dataset.shuffle(buffer_size).padded_batch(BATCH_SIZE, padded_shapes=([None, None, None], [-1]), drop_remainder=True)  # shuffle and batch with length of padding according to the the batch
+	image_dataset = image_dataset.shuffle(buffer_size).padded_batch(batch_size, padded_shapes=([None, None, None], [-1]), drop_remainder=True)  # shuffle and batch with length of padding according to the the batch
 	image_dataset = image_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
 	return image_dataset, max_seq_len, set_len
