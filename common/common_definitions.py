@@ -41,6 +41,7 @@ MAX_CKPT_TO_KEEP = 300
 # GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
 # INIT_LEARNING_RATE = 1e-4
 WARM_UP_STEPS = 4000  # for scheduler
+CKPT_INDEX_RESTORE = 15  # -1 for the last one
 
 # Dataset Directory
 
@@ -82,6 +83,7 @@ BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to
 
 # SCST's parameter
 REWARD_DISCOUNT_FACTOR = 1
+MIN_EPSILON = 1e-6
 
 logging.basicConfig(level=LOGGING_LEVEL)
 

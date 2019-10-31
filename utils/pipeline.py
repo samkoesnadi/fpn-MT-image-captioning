@@ -44,7 +44,7 @@ class Pipeline():
 
 		# if a checkpoint exists, restore the latest checkpoint.
 		if self.ckpt_manager.latest_checkpoint:
-			self.ckpt.restore(self.ckpt_manager.latest_checkpoint)
+			self.ckpt.restore(self.ckpt_manager.checkpoints[CKPT_INDEX_RESTORE - 1 if CKPT_INDEX_RESTORE != -1 else -1])
 			print('Latest checkpoint restored!!')
 
 		# define metric for SCST
@@ -66,8 +66,11 @@ class Pipeline():
 		:param pred:
 		:return:
 		"""
-		log_prob = tf.math.log(tf.nn.softmax(pred))
-		loss_ = - reward * tf.reduce_sum(tf.reshape(log_prob, (BATCH_SIZE, -1)), axis=1)
+		pred = tf.nn.softmax(pred)
+		masked_pred = tf.math.reduce_max(pred, axis=-1)
+
+		log_prob = tf.math.log(masked_pred + MIN_EPSILON)  # add min_epsilon so it cannot reach 0 which is impossible to log
+		loss_ = - reward * tf.reduce_sum(log_prob, axis=1)
 
 		return tf.reduce_mean(loss_)
 
