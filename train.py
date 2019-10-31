@@ -71,6 +71,12 @@ if __name__ == "__main__":
 				tf.summary.scalar('loss', master.train_loss.result(),
 				                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
 
+				# save ckpt
+				ckpt_save_path = "<ckpt not saved>"
+				if epoch + 1 > MIN_EPOCH_TO_SAVE_CKPT:
+					ckpt_save_path = master.ckpt_manager.save()
+					print('Saving checkpoint for epoch {} at {}'.format(epoch + 1,
+					                                                    ckpt_save_path))
 
 				if (epoch + 1) % N_EPOCH_TO_EVALUATE == 0 and (epoch + 1) > MIN_EPOCH_TO_EVAL:
 					# evaluate
@@ -92,9 +98,22 @@ if __name__ == "__main__":
 						ckpt_save_path = master.ckpt_manager.save()
 						print('Saving checkpoint for epoch {} at {}'.format(epoch+1,
 						                                                    ckpt_save_path))
+
+						# store last epoch step and accuracy
 						additional_info[key_epoch] = epoch + 1
 						additional_info[key_epoch_acc] = cider
 						store_additional_info(additional_info, ADDITIONAL_FILENAME)
+
+						# log to file
+						if os.path.exists(LOGGING_FILE_PATH):
+							append_write = 'a'  # append if already exists
+						else:
+							append_write = 'w'  # make a new file if not
+
+						with open(LOGGING_FILE_PATH, append_write) as _log_fd:
+							_log_fd.write('Saving checkpoint for epoch {} at {}. CIDEr = {}'.format(epoch + 1,
+							                                                                        ckpt_save_path,
+							                                                                        cider) + '\n')
 
 			print()
 
@@ -131,6 +150,7 @@ if __name__ == "__main__":
 				                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
 
 				ckpt_save_path = "<ckpt not saved>"
+
 				if epoch + 1 > MIN_EPOCH_TO_SAVE_CKPT:
 					ckpt_save_path = master.ckpt_manager.save()
 					print('Saving checkpoint for epoch {} at {}'.format(epoch + 1,
@@ -153,7 +173,7 @@ if __name__ == "__main__":
 						                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
 
 						# store last epoch step and accuracy
-						additional_info[key_epoch] = master.smart_ckpt_saver.max_acc_epoch
+						additional_info[key_epoch] = epoch + 1
 						additional_info[key_epoch_acc] = cider
 						store_additional_info(additional_info, ADDITIONAL_FILENAME)
 
@@ -169,7 +189,7 @@ if __name__ == "__main__":
 
 			print()
 
-		print('Saving Transformer weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))
+		print('Saving Transformer weights for epoch {}'.format(EPOCHS))
 		master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
 		master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
 
