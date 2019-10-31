@@ -12,11 +12,13 @@ class Pipeline():
 	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len, start_epoch_acc=0.):
 		# load tokenizer
 		self.tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(tokenizer_filename)
-		self.metric_eval = MetricEval(DATADIR, DATATYPE_VAL)
+		self.pad_token = self.tokenizer.encode(" ")[0]
+		self.end_token = self.tokenizer.encode(END_TOKEN)[0]
 
+		self.metric_eval = MetricEval(DATADIR, DATATYPE_VAL)
 		self.max_seq_len = max_seq_len
 
-		self.target_vocab_size = self.tokenizer.vocab_size + 2  # the total length of index + 2 because of start and end token
+		self.target_vocab_size = self.tokenizer.vocab_size  # the total length of index
 		input_vocab_size = math.ceil(IMAGE_INPUT_SIZE / 16) ** 2  # the input vocab size is the last dimension from Feature Extractor, i.e. if the input is 512, max input_vocab_size would be 32*32
 
 		# instance of Transformers
@@ -31,6 +33,8 @@ class Pipeline():
 
 		# define train loss and accuracy
 		self.train_loss = tf.keras.metrics.Mean(name='train_loss')
+		self.train_loss_scst_infer = tf.keras.metrics.Mean(name='cider_infer_scst_loss')
+		self.train_loss_scst_train = tf.keras.metrics.Mean(name='cider_train_scst_loss')
 
 		# checkpoint
 		self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
@@ -45,12 +49,27 @@ class Pipeline():
 			self.ckpt.restore(self.ckpt_manager.latest_checkpoint)
 			print('Latest checkpoint restored!!')
 
+		# define metric for SCST
+		self.cider_score_eval = Cider()
+
 	def loss(self, real, pred):
 		mask = tf.math.logical_not(tf.math.equal(real, 0))
 		loss_ = self.loss_object_sparse(real, pred)
 
 		mask = tf.cast(mask, dtype=loss_.dtype)
 		loss_ *= mask
+
+		return tf.reduce_mean(loss_)
+
+	def loss_scst_softmax(self, reward, pred):
+		"""
+		Policy gradient loss RL
+		:param reward:
+		:param pred:
+		:return:
+		"""
+		log_prob = tf.math.log(tf.nn.softmax(pred))
+		loss_ = - reward * tf.reduce_sum(tf.reshape(log_prob, (BATCH_SIZE, -1)), axis=1)
 
 		return tf.reduce_mean(loss_)
 
@@ -85,13 +104,71 @@ class Pipeline():
 
 		# inference prediction's result
 		inf_predict_result = self.predict_batch(img, tf.constant(tar_real_shape[1]))
-		  # filter all <end token>
 
 		# training prediction's result
 		_mask = create_masks(tar_inp)
-		train_predict_result, _ = self.transformer(img, tar_inp,
-		                                  True,
-		                                  _mask)
+
+		# compute loss and gradient here
+		with tf.GradientTape() as tape:
+			train_predict_result, _ = self.transformer(img, tar_inp,
+			                                           True,
+			                                           _mask)
+
+			cider_resInfs, cider_resTrains = self.get_scst_reward(tar_real, inf_predict_result, train_predict_result)
+
+			# compute loss
+			loss = self.loss_scst_softmax(REWARD_DISCOUNT_FACTOR * (cider_resTrains - cider_resInfs), train_predict_result)  # reward with baseline
+
+		gradients = tape.gradient(loss, self.transformer.trainable_variables)
+		self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
+
+		self.train_loss(loss)
+		self.train_loss_scst_train(tf.reduce_mean(cider_resTrains))
+		self.train_loss_scst_infer(tf.reduce_mean(cider_resInfs))
+
+	def _decode_tokens(self, tokens):
+		"""
+		Private function for get_scst_reward
+		:param tokens: numpy array
+		:return:
+		"""
+		target_index = np.where(tokens == self.end_token)[0]
+		if target_index.size != 0:
+			tokens = tokens[:target_index[0] + 1]  # include the end token itself
+
+		# remove pad by replacing it with space
+		tokens[tokens == 0] = self.pad_token
+
+		return self.tokenizer.decode(tokens.astype(np.int32))
+
+	def get_scst_reward(self, gts, res_infs, res_trains):
+		"""
+		Get the SCST's reward. CIDEr is used
+		:return: (cider_resInfs, cider_resTrains)
+		"""
+		# the input will be tokens, so decode those first
+		gts = [self._decode_tokens(gt) for gt in gts.numpy()]
+		res_infs = [self._decode_tokens(res_inf) for res_inf in res_infs.numpy()]
+
+		# special handling for res_trains, find max prediction for all so that we can calculate the CIDEr
+		res_trains_predicted_ids = tf.argmax(res_trains, axis=-1)
+		res_trains = [self._decode_tokens(res_train) for res_train in res_trains_predicted_ids.numpy()]
+
+		# stack the batch into two, especially for CIDEr because it requires big reference
+		batch_size = len(gts)
+		gts = {i_batch : [gts[i_batch % batch_size]] for i_batch in range(batch_size * 2)}
+		res_infs = {i_batch : [res_infs[i_batch % batch_size]] for i_batch in range(batch_size * 2)}
+		res_trains = {i_batch : [res_trains[i_batch % batch_size]] for i_batch in range(batch_size * 2)}
+
+		# do cider operation to inference and training mode of network
+		_, cider_resInfs = self.cider_score_eval.compute_score(gts, res_infs)
+		_, cider_resTrains = self.cider_score_eval.compute_score(gts, res_trains)
+
+		# take one batch only since we double the batch before
+		cider_resInfs = cider_resInfs[:batch_size]
+		cider_resTrains = cider_resTrains[:batch_size]
+
+		return cider_resInfs, cider_resTrains
 
 
 
@@ -104,7 +181,6 @@ class Pipeline():
 
 		# define start token and end token
 		start_token = self.tokenizer.vocab_size
-		end_token = self.tokenizer.vocab_size + 1
 
 		img_shape = tf.shape(img)  # shape of the image
 
@@ -116,8 +192,6 @@ class Pipeline():
 		_output = tf.broadcast_to(decoder_input, (img_shape[0], 1))
 		output = tf.concat([_output, tf.zeros((img_shape[0], max_seq_len + 1), tf.int32)],
 		                   axis=-1)  # add zeros in the end
-		# output_wo_endtoken = tf.concat([_output, tf.zeros((img_shape[0], max_seq_len + 1), tf.int32)],
-		#                    axis=-1)  # add zeros in the end, w/o end token
 
 		for i_seq in tf.range(1, max_seq_len + 1):
 			_masks = create_masks(output)
@@ -134,10 +208,6 @@ class Pipeline():
 			# as its input.
 			output = tf.concat([output[:, :i_seq], predicted_id, tf.zeros([img_shape[0], max_seq_len - i_seq], tf.int32)], axis=-1)
 
-			# # predicted id without end token
-			# predicted_id_wo_endtoken = tf.map_fn(lambda x: 0 if x == end_token else x, predicted_id)  # filter the end token and turn it to padding
-			# output_wo_endtoken = tf.concat([output_wo_endtoken[:, :i_seq], predicted_id_wo_endtoken, tf.zeros([img_shape[0], max_seq_len - i_seq], tf.int32)], axis=-1)
-
 		return tf.cast(output[:, 1:], tf.int32)  # no start token inside, end token is still inside
 
 	def predict(self, img, max_seq_len):
@@ -148,7 +218,7 @@ class Pipeline():
 		:return: beam_result, attention_weights, coatt_weights ... attention_weights are from the decoder, coatt_weights from RetinaNet in the encoder
 		"""
 		start_token = self.tokenizer.vocab_size
-		end_token = self.tokenizer.vocab_size + 1
+		end_token = self.end_token
 
 		# preprocessing
 		img_expand_dims = tf.expand_dims(img, 0)
@@ -251,6 +321,9 @@ class Pipeline():
 		"""
 
 		result, attention_weights, coatt_weights = self.predict(img, max_seq_len)
-		result = self.tokenizer.decode(result.numpy())
+
+		result = result.numpy()
+		result[result == 0] = self.pad_token  # replace 0 with space
+		result = self.tokenizer.decode()
 
 		return result, attention_weights, coatt_weights

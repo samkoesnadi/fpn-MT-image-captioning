@@ -41,7 +41,7 @@ def load_image(img_path, augmentation=None):
 	return img
 
 def tokenizer_encode(tokenizer, captions):
-	captions_token = [[tokenizer.vocab_size] + tokenizer.encode(caption) + [tokenizer.vocab_size + 1] for caption in captions]  # vocab_size is <start> and vocab_size+1 is <end>
+	captions_token = [[tokenizer.vocab_size] + tokenizer.encode(caption) for caption in captions]  # vocab_size is <start>, vocab_end is part of the token
 
 	return captions_token
 
@@ -58,10 +58,10 @@ def get_captions_from_anns(anns):
 	:param anns:
 	:return:
 	"""
-	captions = [ann["caption"].lower() for ann in anns]  # also put the start and end token, IMPORTANT! Lower case as the dataset
+	captions = [ann["caption"].lower() + END_TOKEN for ann in anns]  # also put the start and end token, IMPORTANT! Lower case as the dataset, and EOS as end token
 
 	# preprocess the captions to seperate ',' and '.' from words
-	captions = [re.sub(r'([.,])', r" \1 ", caption) for caption in captions]
+	captions = [re.sub(r'(\s*([.,])\s*)', r" \2 ", caption) for caption in captions]
 
 	return captions
 
@@ -90,14 +90,14 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None):
 	captions = get_captions_from_anns(anns)
 	imgIds = [ann["image_id"] for ann in anns]
 
-	tokenizer_file = Path(TOKENIZER_FILENAME)
+	tokenizer_file = Path(TOKENIZER_FILENAME + ".subwords")
 	if tokenizer_file.is_file():
 		tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(TOKENIZER_FILENAME)
 
 		print("Tokenizer is loaded from", tokenizer_file)
 	else:
 		# preprocess captions into token
-		tokenizer = tfds.features.text.SubwordTextEncoder.build_from_corpus(captions, target_vocab_size=TOP_K)
+		tokenizer = tfds.features.text.SubwordTextEncoder.build_from_corpus(captions, target_vocab_size=TOP_K, reserved_tokens=[END_TOKEN])
 
 		# store the tokenizer
 		tokenizer.save_to_file(TOKENIZER_FILENAME)

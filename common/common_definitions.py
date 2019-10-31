@@ -17,10 +17,10 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 10
+BATCH_SIZE = 5
 BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 100
-XE_EPOCHS = 20  # the amount of epoch cross entropy will go through
+XE_EPOCHS = 15  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 4
 N_VAL_DATASET = 50  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
@@ -31,6 +31,7 @@ DROPOUT_RATE = 0.1
 
 # dataset preprocessing parameter
 P_AUGMENTATION = 0.5
+END_TOKEN = "<EOS>"
 
 MIN_EPOCH_TO_BREAK = EPOCHS // 2
 MIN_EPOCH_TO_EVAL = 10
@@ -75,6 +76,8 @@ N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the 
 # MT-UMV-Encoder
 BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
+# SCST's parameter
+REWARD_DISCOUNT_FACTOR = 1
 
 logging.basicConfig(level=LOGGING_LEVEL)
 

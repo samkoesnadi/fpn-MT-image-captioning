@@ -356,7 +356,7 @@ class Transformer(tf.keras.Model):
 		                       input_vocab_size, rate)
 
 		self.decoder = Decoder(num_layers, d_model, num_heads, dff,
-		                       target_vocab_size, rate, max_position, max_seq_len)
+		                       target_vocab_size + 1, rate, max_position, max_seq_len)  # target_vocab_size + 1 for the start token
 
 		self.final_layer = tf.keras.layers.Dense(target_vocab_size, activation="linear")
 
