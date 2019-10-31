@@ -17,7 +17,7 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 8  # for the SCST
+BATCH_SIZE = 7  # for the SCST
 XE_BATCH_SIZE = 10
 BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 100
@@ -26,7 +26,7 @@ BEAM_SEARCH_N = 4
 N_VAL_DATASET = 100  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
 N_EPOCH_TO_EVALUATE = 1  # rythm of the epoch to evaluate and save checkpoint
-MAX_EVAL_TIME = 180 # maximum evaluation time in seconds
+MAX_EVAL_TIME = 240 # maximum evaluation time in seconds
 AMOUNT_OF_VALIDATION = 100  # used for convert_dataset
 DROPOUT_RATE = 0.1
 
