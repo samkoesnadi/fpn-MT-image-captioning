@@ -34,9 +34,11 @@ DROPOUT_RATE = 0.1
 P_AUGMENTATION = 0.5
 END_TOKEN = "<EOS>"
 
-MIN_EPOCH_TO_BREAK = EPOCHS // 2
+# MIN_EPOCH_TO_BREAK = EPOCHS // 2
 MIN_EPOCH_TO_EVAL = 10
-GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
+MIN_EPOCH_TO_SAVE_CKPT = 5
+MAX_CKPT_TO_KEEP = 300
+# GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
 # INIT_LEARNING_RATE = 1e-4
 WARM_UP_STEPS = 4000  # for scheduler
 
@@ -61,6 +63,7 @@ TRANSFORMER_WEIGHT_PATH = "model_weights/multimodal_transformer.h5"  # transform
 TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/multimodal_transformer"
 RESULT_FILE = "results/" + DATATYPE_VAL + "_captions_result.json"
 PLOT_RESULT_FOLDER = "results/plots/"
+LOGGING_FILE_PATH = "results/_logging_multimodal_transformer.txt"
 
 ### Set Hyperparameters for Transformer
 num_layers = 6

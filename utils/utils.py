@@ -220,38 +220,38 @@ def weighted_loss(target, pred, loss_function, light_background=True):
 	return _loss
 
 
-class SmartCheckpointSaver:
-	def __init__(self, ckpt_manager, max_val_acc=-np.inf):
-		self.ckpt_manager = ckpt_manager
-		self.max_val_acc = max_val_acc  # max validation accuracy
-		self.max_acc_epoch = 0  # the epoch in which we have the maximum accuracy
-
-	def __call__(self, curr_epoch, curr_val_acc):
-		"""
-
-		:param curr_epoch:
-		:param curr_val_acc:
-		:return: 1 ckpt saved, 0 nothing is done, -1 no new max_val_acc is created in the given rule
-		"""
-
-		# just for beginning when max_val and max_acc is empty
-		if self.max_val_acc == -np.inf:
-			self.max_val_acc = curr_val_acc
-			self.max_acc_epoch = curr_epoch
-
-		if curr_val_acc > self.max_val_acc:
-			ckpt_save_path = self.ckpt_manager.save()
-			print('Saving checkpoint for epoch {} at {}'.format(curr_epoch,
-			                                                    ckpt_save_path))
-			self.max_val_acc = curr_val_acc
-			self.max_acc_epoch = curr_epoch
-			return 1
-		elif curr_epoch <= MIN_EPOCH_TO_BREAK:  # if it is less or equal to MIN_EPOCH_TO_BREAK, reset everything
-			self.max_val_acc = curr_val_acc
-			self.max_acc_epoch = curr_epoch
-		else:
-			epoch_min = min(EPOCHS, max(MIN_EPOCH_TO_BREAK, int(self.max_acc_epoch * 2.)), int(self.max_acc_epoch + GAP_OF_DEAD_EPOCH))  # min epoch to break is 10
-
-			if epoch_min <= curr_epoch:
-				return -1
-		return 0
+# class SmartCheckpointSaver:
+# 	def __init__(self, ckpt_manager, max_val_acc=-np.inf):
+# 		self.ckpt_manager = ckpt_manager
+# 		self.max_val_acc = max_val_acc  # max validation accuracy
+# 		self.max_acc_epoch = 0  # the epoch in which we have the maximum accuracy
+#
+# 	def __call__(self, curr_epoch, curr_val_acc):
+# 		"""
+#
+# 		:param curr_epoch:
+# 		:param curr_val_acc:
+# 		:return: 1 ckpt saved, 0 nothing is done, -1 no new max_val_acc is created in the given rule
+# 		"""
+#
+# 		# just for beginning when max_val and max_acc is empty
+# 		if self.max_val_acc == -np.inf:
+# 			self.max_val_acc = curr_val_acc
+# 			self.max_acc_epoch = curr_epoch
+#
+# 		if curr_val_acc > self.max_val_acc:
+# 			ckpt_save_path = self.ckpt_manager.save()
+# 			print('Saving checkpoint for epoch {} at {}'.format(curr_epoch,
+# 			                                                    ckpt_save_path))
+# 			self.max_val_acc = curr_val_acc
+# 			self.max_acc_epoch = curr_epoch
+# 			return 1
+# 		elif curr_epoch <= MIN_EPOCH_TO_BREAK:  # if it is less or equal to MIN_EPOCH_TO_BREAK, reset everything
+# 			self.max_val_acc = curr_val_acc
+# 			self.max_acc_epoch = curr_epoch
+# 		else:
+# 			epoch_min = min(EPOCHS, max(MIN_EPOCH_TO_BREAK, int(self.max_acc_epoch * 2.)), int(self.max_acc_epoch + GAP_OF_DEAD_EPOCH))  # min epoch to break is 10
+#
+# 			if epoch_min <= curr_epoch:
+# 				return -1
+# 		return 0

@@ -40,9 +40,7 @@ class Pipeline():
 		self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
 		                                optimizer=self.optimizer)
 
-		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=100)
-
-		self.smart_ckpt_saver = SmartCheckpointSaver(self.ckpt_manager, start_epoch_acc)
+		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=MAX_CKPT_TO_KEEP)
 
 		# if a checkpoint exists, restore the latest checkpoint.
 		if self.ckpt_manager.latest_checkpoint:

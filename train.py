@@ -130,6 +130,11 @@ if __name__ == "__main__":
 				tf.summary.scalar('loss_cider_infer', master.train_loss_scst_infer.result(),
 				                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
 
+				ckpt_save_path = "<ckpt not saved>"
+				if epoch + 1 > MIN_EPOCH_TO_SAVE_CKPT:
+					ckpt_save_path = master.ckpt_manager.save()
+					print('Saving checkpoint for epoch {} at {}'.format(epoch + 1,
+					                                                    ckpt_save_path))
 
 				if (epoch + 1) % N_EPOCH_TO_EVALUATE == 0:
 					# evaluate
@@ -147,17 +152,20 @@ if __name__ == "__main__":
 						tf.summary.scalar('CIDEr', cider,
 						                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
 
-						# based on the cider determine early stopping
-						should_break = master.smart_ckpt_saver(epoch + 1,
-						                                       cider)  # this will be better if we use validation
-						if should_break == -1:
-							start_epoch = epoch
-							break
-						elif should_break == 1:
-							# store last epoch step and accuracy
-							additional_info[key_epoch] = master.smart_ckpt_saver.max_acc_epoch
-							additional_info[key_epoch_acc] = cider
-							store_additional_info(additional_info, ADDITIONAL_FILENAME)
+						# store last epoch step and accuracy
+						additional_info[key_epoch] = master.smart_ckpt_saver.max_acc_epoch
+						additional_info[key_epoch_acc] = cider
+						store_additional_info(additional_info, ADDITIONAL_FILENAME)
+
+						# log to file
+						if os.path.exists(LOGGING_FILE_PATH):
+							append_write = 'a'  # append if already exists
+						else:
+							append_write = 'w'  # make a new file if not
+
+						with open(LOGGING_FILE_PATH, append_write) as _log_fd:
+							_log_fd.write('Saving checkpoint for epoch {} at {}. CIDEr = {}'.format(epoch + 1,
+					                                                    ckpt_save_path, cider) + '\n')
 
 			print()
 
