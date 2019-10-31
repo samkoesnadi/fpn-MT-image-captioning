@@ -324,6 +324,6 @@ class Pipeline():
 
 		result = result.numpy()
 		result[result == 0] = self.pad_token  # replace 0 with space
-		result = self.tokenizer.decode()
+		result = self.tokenizer.decode(result)
 
 		return result, attention_weights, coatt_weights
