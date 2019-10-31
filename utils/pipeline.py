@@ -70,7 +70,7 @@ class Pipeline():
 		masked_pred = tf.math.reduce_max(pred, axis=-1)
 
 		log_prob = tf.math.log(masked_pred + MIN_EPSILON)  # add min_epsilon so it cannot reach 0 which is impossible to log
-		loss_ = - reward * tf.reduce_sum(log_prob, axis=1)
+		loss_ = reward * tf.reduce_sum(log_prob, axis=1)
 
 		return tf.reduce_mean(loss_)
 
