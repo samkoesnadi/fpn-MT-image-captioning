@@ -129,7 +129,7 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None, batch_size=BATCH_SIZ
 	image_dataset = tf.data.Dataset.from_generator(dataset_generator, output_types=(tf.string, tf.float32), output_shapes=(tf.TensorShape([]), tf.TensorShape([None])))
 
 	# set augmentation
-	augmentation = _aug(p=P_AUGMENTATION)
+	augmentation = _aug(p=P_AUGMENTATION) if P_AUGMENTATION > 0 else None
 	image_dataset = image_dataset.map(lambda img, caption: load_image_and_preprocess(img, caption, augmentation), num_parallel_calls=tf.data.experimental.AUTOTUNE)  # load the image
 	image_dataset = image_dataset.shuffle(buffer_size).padded_batch(batch_size, padded_shapes=([None, None, None], [-1]), drop_remainder=True)  # shuffle and batch with length of padding according to the the batch
 	image_dataset = image_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)

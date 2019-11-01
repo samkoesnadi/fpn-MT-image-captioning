@@ -136,7 +136,7 @@ def plot_coatt(img, coatt_weights):
 
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-	def __init__(self, d_model, warmup_steps=4000, multiplier=1):
+	def __init__(self, d_model, warmup_steps=4000, multiplier=1, XE_iter_per_batch=725):
 		super(CustomSchedule, self).__init__()
 
 		self.d_model = d_model
@@ -144,13 +144,13 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
 		self.warmup_steps = warmup_steps
 		self.multiplier = multiplier
+		self.init_SCST_lr_steps = XE_iter_per_batch * XE_BATCH_SIZE
 
 	def __call__(self, step):
 		arg1 = tf.math.rsqrt(step) / tf.maximum((step - self.warmup_steps) * self.multiplier / (self.warmup_steps * 2), 1)
-		# arg1 = tf.math.rsqrt(step) * self.warmup_steps
 		arg2 = step * (self.warmup_steps ** -1.5)
 
-		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+		return tf.math.minimum(tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2), tf.maximum(-tf.math.sign(step - self.init_SCST_lr_steps), SCST_LEARNING_RATE))
 
 
 class CustomSchedule_rough(tf.keras.optimizers.schedules.LearningRateSchedule):

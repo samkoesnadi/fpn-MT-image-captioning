@@ -9,7 +9,7 @@ class Pipeline():
 	"""
 	The main class that runs shit
 	"""
-	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len, start_epoch_acc=0.):
+	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len, train_set_len):
 		# load tokenizer
 		self.tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(tokenizer_filename)
 		self.pad_token = self.tokenizer.encode(" ")[0]
@@ -26,7 +26,7 @@ class Pipeline():
 		                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
 		# define optimizer and loss
-		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS)
+		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS, XE_iter_per_batch=train_set_len)
 		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9, amsgrad=True, clipnorm=1.)
 
 		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
@@ -69,7 +69,7 @@ class Pipeline():
 		pred = tf.nn.softmax(pred)
 		masked_pred = tf.math.reduce_max(pred, axis=-1)
 
-		log_prob = tf.math.log(masked_pred + MIN_EPSILON)  # add min_epsilon so it cannot reach 0 which is impossible to log
+		log_prob = - tf.math.log(masked_pred + MIN_EPSILON)  # add min_epsilon so it cannot reach 0 which is impossible to log
 		loss_ = reward * tf.reduce_sum(log_prob, axis=1)
 
 		return tf.reduce_mean(loss_)

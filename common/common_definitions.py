@@ -21,7 +21,7 @@ BATCH_SIZE = 7  # for the SCST
 XE_BATCH_SIZE = 10
 BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 100
-XE_EPOCHS = 15  # the amount of epoch cross entropy will go through.
+XE_EPOCHS = 20  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 4
 N_VAL_DATASET = 100  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
@@ -83,7 +83,8 @@ BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to
 
 # SCST's parameter
 REWARD_DISCOUNT_FACTOR = 1
-MIN_EPSILON = 1e-6
+MIN_EPSILON = 1e-9
+SCST_LEARNING_RATE = 5e-5
 
 logging.basicConfig(level=LOGGING_LEVEL)
 
