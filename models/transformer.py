@@ -359,11 +359,11 @@ class Transformer(tf.keras.Model):
 
 		self.final_layer = tf.keras.layers.Dense(target_vocab_size, activation="linear")
 
-	def __call__(self, inp, tar, training, look_ahead_mask):
-		if training:  # IMPORTANT: if training, then preprocess the image multiple time (because of the sequence length), otherwise please preprocess the image before calling this Transformer model
-			enc_output, _ = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
-		else:  # this is to speed up inference time, so put the encoder preprocessed outside of the Transformer
+	def __call__(self, inp, tar, training, look_ahead_mask, input_is_enc_output=True):
+		if input_is_enc_output:  # IMPORTANT: if training, then preprocess the image multiple time (because of the sequence length), otherwise please preprocess the image before calling this Transformer model
 			enc_output = inp
+		else:  # this is to speed up inference time, so put the encoder preprocessed outside of the Transformer
+			enc_output, _ = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
 
 		# make tar sparse
 		tar = self.tar_inp(tar)

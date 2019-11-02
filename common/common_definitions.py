@@ -12,18 +12,18 @@ LOGGING_LEVEL = logging.DEBUG
 
 TOP_K = 2 ** 13  # this is for tokenizer
 
-ACTIVATION = tf.nn.leaky_relu
+ACTIVATION = tf.nn.relu
 KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 7  # for the SCST
-XE_BATCH_SIZE = 10
-BUFFER_SIZE = 2000  # this is important for shuffling
+BATCH_SIZE = 12  # for the SCST
+XE_BATCH_SIZE = 14
+BUFFER_SIZE = 3000  # this is important for shuffling
 EPOCHS = 100
-XE_EPOCHS = 20  # the amount of epoch cross entropy will go through.
+XE_EPOCHS = 30  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 4
-N_VAL_DATASET = 100  # the number of dataset to be validated
+N_VAL_DATASET = 24  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
 N_EPOCH_TO_EVALUATE = 1  # rythm of the epoch to evaluate and save checkpoint
 MAX_EVAL_TIME = 240 # maximum evaluation time in seconds
@@ -31,7 +31,7 @@ AMOUNT_OF_VALIDATION = 100  # used for convert_dataset
 DROPOUT_RATE = 0.1
 
 # dataset preprocessing parameter
-P_AUGMENTATION = 0.5
+P_AUGMENTATION = 0
 END_TOKEN = "<EOS>"
 
 # MIN_EPOCH_TO_BREAK = EPOCHS // 2
@@ -39,9 +39,9 @@ MIN_EPOCH_TO_EVAL = 10
 MIN_EPOCH_TO_SAVE_CKPT = 5
 MAX_CKPT_TO_KEEP = 300
 # GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
-# INIT_LEARNING_RATE = 1e-4
 WARM_UP_STEPS = 4000  # for scheduler
-CKPT_INDEX_RESTORE = 15  # -1 for the last one
+CKPT_INDEX_RESTORE = -1  # -1 for the last one
+START_EPOCH = None  # set it to None, otherwise it overrides the start epoch from additional file
 
 # Dataset Directory
 
@@ -82,9 +82,10 @@ N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the 
 BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
 # SCST's parameter
-REWARD_DISCOUNT_FACTOR = 1
-MIN_EPSILON = 1e-9
-SCST_LEARNING_RATE = 5e-5
+MIN_EPSILON = 1e-5
+SCST_LEARNING_RATE = 1e-6
+REWARD_DISCOUNT_FACTOR = 1.  # as in the SCST paper, the CIDEr is alway in range above 100, while what I have is always in range 1
+MAX_TEMPERATURE = 5.
 
 logging.basicConfig(level=LOGGING_LEVEL)
 

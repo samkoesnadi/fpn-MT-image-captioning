@@ -10,3 +10,4 @@ tensorflow-gpu
 git+https://github.com/salaniz/pycocoevalcap
 scikit-image
 albumentations
+tensorflow_probability

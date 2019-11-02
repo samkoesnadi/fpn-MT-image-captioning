@@ -4,12 +4,13 @@ Pipeline for the model to train and predict
 
 from models.transformer import *
 from tqdm import tqdm
+import tensorflow_probability as tfp
 
 class Pipeline():
 	"""
 	The main class that runs shit
 	"""
-	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len, train_set_len):
+	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len):
 		# load tokenizer
 		self.tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(tokenizer_filename)
 		self.pad_token = self.tokenizer.encode(" ")[0]
@@ -26,26 +27,31 @@ class Pipeline():
 		                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
 		# define optimizer and loss
-		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS, XE_iter_per_batch=train_set_len)
-		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9, amsgrad=True, clipnorm=1.)
+		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS)
+
+		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, beta_1=0.9, beta_2=0.98, epsilon=MIN_EPSILON, amsgrad=True, clipnorm=1.)
+		self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, beta_1=0.9, beta_2=0.98, epsilon=MIN_EPSILON, amsgrad=True, clipnorm=1.)
 
 		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+		self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
 
 		# define train loss and accuracy
 		self.train_loss = tf.keras.metrics.Mean(name='train_loss')
-		self.train_loss_scst_infer = tf.keras.metrics.Mean(name='cider_infer_scst_loss')
-		self.train_loss_scst_train = tf.keras.metrics.Mean(name='cider_train_scst_loss')
+		self.train_reward_scst_infer = tf.keras.metrics.Mean(name='cider_infer_scst_reward')
+		self.train_reward_scst_train = tf.keras.metrics.Mean(name='cider_train_scst_reward')
 
 		# checkpoint
 		self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
-		                                optimizer=self.optimizer)
+		                                optimizer=self.optimizer,
+		                                scst_optimizer=self.scst_optimizer)
 
 		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=MAX_CKPT_TO_KEEP)
 
 		# if a checkpoint exists, restore the latest checkpoint.
 		if self.ckpt_manager.latest_checkpoint:
-			self.ckpt.restore(self.ckpt_manager.checkpoints[CKPT_INDEX_RESTORE - 1 if CKPT_INDEX_RESTORE != -1 else -1])
-			print('Latest checkpoint restored!!')
+			checkpoint_to_restore = os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) if CKPT_INDEX_RESTORE != -1 else self.ckpt_manager.latest_checkpoint
+			self.ckpt.restore(checkpoint_to_restore)
+			print('\nLatest checkpoint restored!!')
 
 		# define metric for SCST
 		self.cider_score_eval = Cider()
@@ -59,20 +65,21 @@ class Pipeline():
 
 		return tf.reduce_mean(loss_)
 
-	def loss_scst_softmax(self, reward, pred):
+	def loss_scst_softmax(self, reward, predictions, masks):
 		"""
 		Policy gradient loss RL
 		:param reward:
-		:param pred:
+		:param pred: log_probs, shape (batch_size, max_seq_len - 1, target_vocab_size)
 		:return:
 		"""
-		pred = tf.nn.softmax(pred)
-		masked_pred = tf.math.reduce_max(pred, axis=-1)
+		log_probs = self.loss_object(masks, predictions)  # log_softmax the prediction and mask it with the sample
 
-		log_prob = - tf.math.log(masked_pred + MIN_EPSILON)  # add min_epsilon so it cannot reach 0 which is impossible to log
-		loss_ = reward * tf.reduce_sum(log_prob, axis=1)
+		mask = tf.cast(tf.math.logical_not(tf.math.equal(log_probs, 0)), tf.float32)
+		N = tf.math.reduce_sum(mask)  # the total positive log_probs
 
-		return tf.reduce_mean(loss_)
+		loss_ = reward * tf.math.reduce_sum(log_probs, [-1, -2])
+
+		return tf.math.reduce_sum(loss_) / N
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument
@@ -89,7 +96,7 @@ class Pipeline():
 		with tf.GradientTape() as tape:
 			predictions, _ = self.transformer(img, tar_inp,
 			                                  True,
-			                                  _mask)
+			                                  _mask, input_is_enc_output=False)
 			loss = self.loss(tar_real, predictions)
 
 		gradients = tape.gradient(loss, self.transformer.trainable_variables)
@@ -104,35 +111,39 @@ class Pipeline():
 		tar_inp = caption_token[:, :-1]
 		tar_real = caption_token[:, 1:]
 
-		tar_real_shape = tf.shape(tar_real)  # shape of the target
+		# cast tar_real's type
+		tar_real = tf.cast(tar_real, tf.int32)
+
+		caption_token_shape = tf.shape(caption_token)  # shape of the target
 
 		# inference prediction's result
-		inf_predict_result = self.predict_batch(img, tar_real_shape[1])
+		inf_predict_result = self.predict_batch_argmax(img, caption_token_shape[1])
 
 		# training prediction's result
 		_mask = create_masks(tar_inp)
+		train_predict_result, sample_masks = self.predict_batch_sample(img, caption_token_shape[1])  # the start token is still there
 
 		# compute loss and gradient here
 		with tf.GradientTape(watch_accessed_variables=False) as tape:
 			tape.watch(self.transformer.trainable_variables)
-			train_predict_result, _ = self.transformer(img, tar_inp,
-			                                           True,
-			                                           _mask)
+			predictions, _ = self.transformer(img, train_predict_result[:, :-1],
+			                                  True,
+			                                  _mask, input_is_enc_output=False)
 
 			# cider_resInfs, cider_resTrains = self.get_scst_reward(tar_real, inf_predict_result, train_predict_result)
-			cider_resInfs, cider_resTrains = tf.numpy_function(self.get_scst_reward, inp=[tar_real, inf_predict_result, train_predict_result], Tout=[tf.float64, tf.float64])
+			cider_resInfs, cider_resTrains = tf.numpy_function(self.get_scst_reward, inp=[tar_real, inf_predict_result, train_predict_result[:, 1:]], Tout=[tf.float64, tf.float64])
 
 			# compute loss
 			reward_w_baseline = tf.cast(cider_resTrains - cider_resInfs, tf.float32)  # reward with baseline  - do not back propagate this one
 
-			loss = self.loss_scst_softmax(REWARD_DISCOUNT_FACTOR * reward_w_baseline, train_predict_result)  # reward with baseline
+			loss = self.loss_scst_softmax(REWARD_DISCOUNT_FACTOR * reward_w_baseline, predictions, sample_masks)  # reward with baseline
 
 		gradients = tape.gradient(loss, self.transformer.trainable_variables)
-		self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
+		self.scst_optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
 
 		self.train_loss(loss)
-		self.train_loss_scst_train(tf.reduce_mean(cider_resTrains))
-		self.train_loss_scst_infer(tf.reduce_mean(cider_resInfs))
+		self.train_reward_scst_train(tf.reduce_mean(cider_resTrains))
+		self.train_reward_scst_infer(tf.reduce_mean(cider_resInfs))
 
 	def _decode_tokens(self, tokens):
 		"""
@@ -147,7 +158,7 @@ class Pipeline():
 		# remove pad by replacing it with space
 		tokens[tokens == 0] = self.pad_token
 
-		return self.tokenizer.decode(tokens.astype(np.int32))
+		return self.tokenizer.decode(tokens)
 
 	def get_scst_reward(self, gts, res_infs, res_trains):
 		"""
@@ -158,32 +169,32 @@ class Pipeline():
 		# the input will be tokens, so decode those first
 		gts = [self._decode_tokens(gt) for gt in gts]
 		res_infs = [self._decode_tokens(res_inf) for res_inf in res_infs]
-
-		# special handling for res_trains, find max prediction for all so that we can calculate the CIDEr
-		res_trains_predicted_ids = np.argmax(res_trains, axis=-1)
-		res_trains = [self._decode_tokens(res_train) for res_train in res_trains_predicted_ids]
+		res_trains = [self._decode_tokens(res_train) for res_train in res_trains]
 
 		# stack the batch into two, especially for CIDEr because it requires big reference
 		batch_size = len(gts)
 		gts = {i_batch : [gts[i_batch % batch_size]] for i_batch in range(batch_size * 2)}
-		res_infs = {i_batch : [res_infs[i_batch % batch_size]] for i_batch in range(batch_size * 2)}
-		res_trains = {i_batch : [res_trains[i_batch % batch_size]] for i_batch in range(batch_size * 2)}
+		res = {i_batch : [res_infs[i_batch % batch_size]] for i_batch in range(batch_size)}  # the first batch length is the inf
+		res_2  = {i_batch : [res_trains[i_batch - batch_size]] for i_batch in range(batch_size, 2 * batch_size)}
+
+		# update res by adding res_2 to itself
+		res.update(res_2)
 
 		# do cider operation to inference and training mode of network
-		_, cider_resInfs = self.cider_score_eval.compute_score(gts, res_infs)
-		_, cider_resTrains = self.cider_score_eval.compute_score(gts, res_trains)
+		_, cider_res = self.cider_score_eval.compute_score(gts, res)
 
 		# take one batch only since we double the batch before
-		cider_resInfs = cider_resInfs[:batch_size]
-		cider_resTrains = cider_resTrains[:batch_size]
+		cider_resInfs = cider_res[:batch_size]
+		cider_resTrains = cider_res[batch_size:2*batch_size]
 
 		return cider_resInfs, cider_resTrains
 
 
-	def predict_batch(self, img, max_seq_len):
+	def predict_batch_sample(self, img, max_seq_len):
 		"""
 		Predict batch until the defined max_seq_len, this does not use BEAM_SIZE. Intended for SCST
-		:return:
+		:param mode="sample" or "argmax"
+		:return: (output, masks)... the output still has the start token, masks does not have start token
 		"""
 
 		# define start token and end token
@@ -192,7 +203,50 @@ class Pipeline():
 		img_shape = tf.shape(img)  # shape of the image
 
 		# preprocessing
-		encoder_output, coatt_weights = self.transformer.encoder(img, False, None)  # (batch_size, inp_seq_len, d_model)
+		encoder_output, _ = self.transformer.encoder(img, True, None)  # (batch_size, inp_seq_len, d_model)
+
+		# first word is start token
+		decoder_input = [start_token]
+		output = tf.broadcast_to(decoder_input, (img_shape[0], 1))
+		output = tf.concat([output, tf.zeros((img_shape[0], max_seq_len - 1), tf.int32)],
+		                   axis=-1)  # add zeros in the end
+		masks = tf.zeros((img_shape[0], max_seq_len - 1, self.target_vocab_size))  # minus one because there is no start token
+
+		for i_seq in tf.range(max_seq_len - 1):  # minus one because start token is already inside
+			_masks = create_masks(output)
+
+			# predictions.shape == (batch_size, seq_len, vocab_size)
+			predictions, _ = self.transformer(encoder_output, output, True, _masks)
+
+			# select the last word from the seq_len dimension
+			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
+
+			mask = self.boltzmann_sample(predictions, temperature=sample_temperature_schedule(self.scst_optimizer.iterations))
+
+			# get predicted_id from the mask
+			predicted_id = tf.argmax(mask, axis=-1, output_type=tf.int32)
+
+			# concatentate the predicted_id to the output which is given to the decoder
+			# as its input.
+			output = tf.concat([output[:, :i_seq + 1], predicted_id, tf.zeros([img_shape[0], max_seq_len - i_seq - 2], tf.int32)], axis=-1)
+			masks = tf.concat([masks[:, :i_seq], mask, tf.zeros([img_shape[0], max_seq_len - i_seq - 2, self.target_vocab_size])], axis=1)
+
+		return output, masks
+
+	def predict_batch_argmax(self, img, max_seq_len):
+		"""
+		Predict batch until the defined max_seq_len, this does not use BEAM_SIZE. Intended for SCST
+		:param mode="sample" or "argmax"
+		:return: (output, log_probs)
+		"""
+
+		# define start token and end token
+		start_token = self.tokenizer.vocab_size
+
+		img_shape = tf.shape(img)  # shape of the image
+
+		# preprocessing
+		encoder_output, _ = self.transformer.encoder(img, False, None)  # (batch_size, inp_seq_len, d_model)
 
 		# first word is start token
 		decoder_input = [start_token]
@@ -209,13 +263,27 @@ class Pipeline():
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
 
-			predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
+			predicted_id = tf.argmax(predictions, axis=-1, output_type=tf.int32)
 
 			# concatentate the predicted_id to the output which is given to the decoder
 			# as its input.
 			output = tf.concat([output[:, :i_seq + 1], predicted_id, tf.zeros([img_shape[0], max_seq_len - i_seq - 2], tf.int32)], axis=-1)
 
 		return output[:, 1:]  # no start token inside, end token is still inside
+
+	def boltzmann_sample(self, predictions, temperature=1.):
+		"""
+
+		:param predictions: shape(batch_size, num_words)
+		:param temperature: the bigger, the more uniform it becomes. suggestion of range [1, 10]
+		:return: mask. shape(batch_size, num_words)
+		"""
+		softmax_predictions = tf.nn.softmax(tf.math.divide(predictions, temperature))
+		dist = tfp.distributions.Multinomial(total_count=1, probs=softmax_predictions)  # set distribution to sample from the predictions
+		mask = dist.sample(1)[0]
+
+		return mask
+
 
 	def predict(self, img, max_seq_len):
 		"""

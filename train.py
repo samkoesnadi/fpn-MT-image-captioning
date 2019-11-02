@@ -30,7 +30,7 @@ if __name__ == "__main__":
 		else:
 			start_epoch_acc = 0.
 
-		master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len, train_set_len)  # master pipeline
+		master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len)  # master pipeline
 
 		# store the max_seq_len to additional_info as for testing purpose you would not create train_datasets
 		additional_info["max_seq_len"] = max_seq_len
@@ -42,12 +42,15 @@ if __name__ == "__main__":
 		train_summary_writer = tf.summary.create_file_writer(train_log_dir)
 
 		### Train loop
-		start_epoch = 0
-		if master.ckpt_manager.latest_checkpoint:
-			if key_epoch in additional_info:
-				start_epoch = additional_info[key_epoch]
-			else:
-				start_epoch = 0
+		if START_EPOCH is None:
+			start_epoch = 0
+			if master.ckpt_manager.latest_checkpoint:
+				if key_epoch in additional_info:
+					start_epoch = additional_info[key_epoch]
+				else:
+					start_epoch = 0
+		else:
+			start_epoch = START_EPOCH
 
 		# give a gap
 		print()
@@ -74,7 +77,7 @@ if __name__ == "__main__":
 				# save ckpt
 				ckpt_save_path = "<ckpt not saved>"
 				if epoch + 1 > MIN_EPOCH_TO_SAVE_CKPT:
-					ckpt_save_path = master.ckpt_manager.save()
+					ckpt_save_path = master.ckpt_manager.save(checkpoint_number=epoch + 1)
 					print('Saving checkpoint for epoch {} at {}'.format(epoch + 1,
 					                                                    ckpt_save_path))
 
@@ -93,11 +96,6 @@ if __name__ == "__main__":
 
 						tf.summary.scalar('CIDEr', cider,
 						                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
-
-						# store each epoch's checkpoint when it is more or less stable already
-						ckpt_save_path = master.ckpt_manager.save()
-						print('Saving checkpoint for epoch {} at {}'.format(epoch+1,
-						                                                    ckpt_save_path))
 
 						# store last epoch step and accuracy
 						additional_info[key_epoch] = epoch + 1
@@ -127,8 +125,8 @@ if __name__ == "__main__":
 
 		for epoch in range(start_epoch, EPOCHS):
 			master.train_loss.reset_states()
-			master.train_loss_scst_infer.reset_states()
-			master.train_loss_scst_train.reset_states()
+			master.train_reward_scst_infer.reset_states()
+			master.train_reward_scst_train.reset_states()
 
 			# print epoch i / n
 			print("Epoch", epoch + 1, '/', EPOCHS)
@@ -137,22 +135,24 @@ if __name__ == "__main__":
 			with tqdm(train_datasets, total=train_set_len) as t:
 				for (img, caption_token) in t:
 					master.scst_train_step(img, caption_token)
-					t.set_postfix(loss=master.train_loss.result().numpy())
+					t.set_postfix(loss=master.train_loss.result().numpy(),
+					              reward_sample=master.train_reward_scst_train.result().numpy(),
+					              reward_argmax=master.train_reward_scst_infer.result().numpy())
 					t.update()
 
 			# store loss and acc to tensorboard
 			with train_summary_writer.as_default():
 				tf.summary.scalar('loss', master.train_loss.result(),
 				                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
-				tf.summary.scalar('loss_cider_train', master.train_loss_scst_train.result(),
+				tf.summary.scalar('reward_cider_train', master.train_reward_scst_train.result(),
 				                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
-				tf.summary.scalar('loss_cider_infer', master.train_loss_scst_infer.result(),
+				tf.summary.scalar('reward_cider_infer', master.train_reward_scst_infer.result(),
 				                  step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
 
 				ckpt_save_path = "<ckpt not saved>"
 
 				if epoch + 1 > MIN_EPOCH_TO_SAVE_CKPT:
-					ckpt_save_path = master.ckpt_manager.save()
+					ckpt_save_path = master.ckpt_manager.save(checkpoint_number=epoch + 1)
 					print('Saving checkpoint for epoch {} at {}'.format(epoch + 1,
 					                                                    ckpt_save_path))
 
