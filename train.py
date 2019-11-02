@@ -189,9 +189,9 @@ if __name__ == "__main__":
 
 			print()
 
-		print('Saving Transformer weights for epoch {}'.format(EPOCHS))
-		master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
-		master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
+		# print('Saving Transformer weights for epoch {}'.format(EPOCHS))
+		# master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
+		# master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
 
 	else:  # NO TRAINING, just evaluation
 		max_seq_len = load_additional_info(ADDITIONAL_FILENAME)["max_seq_len"]

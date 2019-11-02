@@ -21,12 +21,12 @@ BATCH_SIZE = 12  # for the SCST
 XE_BATCH_SIZE = 14
 BUFFER_SIZE = 3000  # this is important for shuffling
 EPOCHS = 100
-XE_EPOCHS = 30  # the amount of epoch cross entropy will go through.
+XE_EPOCHS = 40  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 4
-N_VAL_DATASET = 24  # the number of dataset to be validated
+N_VAL_DATASET = 100  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
 N_EPOCH_TO_EVALUATE = 1  # rythm of the epoch to evaluate and save checkpoint
-MAX_EVAL_TIME = 240 # maximum evaluation time in seconds
+MAX_EVAL_TIME = 120 # maximum evaluation time in seconds
 AMOUNT_OF_VALIDATION = 100  # used for convert_dataset
 DROPOUT_RATE = 0.1
 
@@ -84,8 +84,8 @@ BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to
 # SCST's parameter
 MIN_EPSILON = 1e-5
 SCST_LEARNING_RATE = 1e-6
-REWARD_DISCOUNT_FACTOR = 1.  # as in the SCST paper, the CIDEr is alway in range above 100, while what I have is always in range 1
-MAX_TEMPERATURE = 5.
+REWARD_DISCOUNT_FACTOR = 1.  # as in the SCST paper, the CIDEr is always in range above 100, while what I have is always in range 1
+MAX_TEMPERATURE = 1.
 
 logging.basicConfig(level=LOGGING_LEVEL)
 

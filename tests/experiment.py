@@ -13,18 +13,8 @@ else:
 	print("TF does not use GPU")
 
 if __name__ == "__main__":
-	p = [[[.1, .2, .7], [.3, .3, .4]], [[.1, .2, .7], [.3, .3, .4]]]  # Shape [2, 3]
-	dist = Multinomial(total_count=1, probs=p)
-
-	counts = [[2., 1, 1], [3, 1, 1]]
-	print(dist.prob(counts))  # Shape [2]
-
-	mask = (dist.sample(1)[0]) # Shape [5, 2, 3]
-	print(mask)
-
-	b = p * mask
-	c = tf.math.reduce_max(b, axis=-1)
-	# a = tf.reshape(tf.boolean_mask(p, mask), tf.shape(mask)[0:-1])
-	print(b,c)
-
-	print(tf.reduce_mean([0., .5, 0., 0.]))
+	cce = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction="none")
+	loss = cce(
+		np.array([[0, 0, 1], [1,0,0], [0,0,1]]),
+		np.array([[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]]))
+	print('Loss: ', loss.numpy())  # Loss: 0.3239

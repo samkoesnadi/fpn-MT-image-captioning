@@ -51,35 +51,37 @@ class Pipeline():
 		if self.ckpt_manager.latest_checkpoint:
 			checkpoint_to_restore = os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) if CKPT_INDEX_RESTORE != -1 else self.ckpt_manager.latest_checkpoint
 			self.ckpt.restore(checkpoint_to_restore)
-			print('\nLatest checkpoint restored!!')
+			print(os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) + ' checkpoint restored!!')
 
 		# define metric for SCST
 		self.cider_score_eval = Cider()
 
 	def loss(self, real, pred):
 		mask = tf.math.logical_not(tf.math.equal(real, 0))
-		loss_ = self.loss_object_sparse(real, pred)
+		mask = tf.cast(mask, tf.float32)
 
-		mask = tf.cast(mask, dtype=loss_.dtype)
+		loss_ = self.loss_object_sparse(real, pred)
 		loss_ *= mask
+
+		# sum up and normalize each sequence
+		loss_ = tf.reduce_sum(loss_, 1) / tf.reduce_sum(mask, 1)
 
 		return tf.reduce_mean(loss_)
 
-	def loss_scst_softmax(self, reward, predictions, masks):
+	def loss_scst_softmax(self, reward, predictions, masks, masks_trains):
 		"""
 		Policy gradient loss RL
 		:param reward:
 		:param pred: log_probs, shape (batch_size, max_seq_len - 1, target_vocab_size)
+		:param masks_trains: its cleaning mask, no padding, no texts after end result
 		:return:
 		"""
 		log_probs = self.loss_object(masks, predictions)  # log_softmax the prediction and mask it with the sample
+		masked_log_probs = log_probs * masks_trains
 
-		mask = tf.cast(tf.math.logical_not(tf.math.equal(log_probs, 0)), tf.float32)
-		N = tf.math.reduce_sum(mask)  # the total positive log_probs
+		loss_ = reward * tf.reduce_sum(masked_log_probs, 1) / tf.reduce_sum(masks_trains, 1)  # averaged sentece
 
-		loss_ = reward * tf.math.reduce_sum(log_probs, [-1, -2])
-
-		return tf.math.reduce_sum(loss_) / N
+		return tf.reduce_sum(loss_)
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument
@@ -131,19 +133,33 @@ class Pipeline():
 			                                  _mask, input_is_enc_output=False)
 
 			# cider_resInfs, cider_resTrains = self.get_scst_reward(tar_real, inf_predict_result, train_predict_result)
-			cider_resInfs, cider_resTrains = tf.numpy_function(self.get_scst_reward, inp=[tar_real, inf_predict_result, train_predict_result[:, 1:]], Tout=[tf.float64, tf.float64])
+			cider_resInfs, cider_resTrains, masks_trains = tf.numpy_function(self.get_scst_reward, inp=[tar_real, inf_predict_result, train_predict_result[:, 1:]], Tout=[tf.float64, tf.float64, tf.float64])
 
 			# compute loss
 			reward_w_baseline = tf.cast(cider_resTrains - cider_resInfs, tf.float32)  # reward with baseline  - do not back propagate this one
 
-			loss = self.loss_scst_softmax(REWARD_DISCOUNT_FACTOR * reward_w_baseline, predictions, sample_masks)  # reward with baseline
+			loss = self.loss_scst_softmax(REWARD_DISCOUNT_FACTOR * reward_w_baseline, predictions, sample_masks, tf.cast(masks_trains, tf.float32))  # reward with baseline
 
 		gradients = tape.gradient(loss, self.transformer.trainable_variables)
 		self.scst_optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
 
 		self.train_loss(loss)
-		self.train_reward_scst_train(tf.reduce_mean(cider_resTrains))
-		self.train_reward_scst_infer(tf.reduce_mean(cider_resInfs))
+		self.train_reward_scst_train(tf.reduce_sum(cider_resTrains))
+		self.train_reward_scst_infer(tf.reduce_sum(cider_resInfs))
+
+	def _clean_tokens(self, tokens):
+		target_index = np.where(tokens == self.end_token)[0]
+		if target_index.size != 0:
+			tokens = tokens[:target_index[0] + 1]  # include the end token itself
+
+		return tokens
+
+	def _clean_tokens_same_len(self, tokens):
+		target_index = np.where(tokens == self.end_token)[0]
+		if target_index.size != 0:
+			tokens[target_index[0] + 1 : ] = 0  # include the end token itself
+
+		return tokens
 
 	def _decode_tokens(self, tokens):
 		"""
@@ -151,9 +167,8 @@ class Pipeline():
 		:param tokens: numpy array
 		:return:
 		"""
-		target_index = np.where(tokens == self.end_token)[0]
-		if target_index.size != 0:
-			tokens = tokens[:target_index[0] + 1]  # include the end token itself
+		# clean the tokens
+		tokens = self._clean_tokens(tokens)
 
 		# remove pad by replacing it with space
 		tokens[tokens == 0] = self.pad_token
@@ -164,12 +179,15 @@ class Pipeline():
 		"""
 		Get the SCST's reward. CIDEr is used
 		@params: in numpy
-		:return: (cider_resInfs, cider_resTrains)
+		:return: (cider_resInfs, cider_resTrains, mask_resTrains)
 		"""
 		# the input will be tokens, so decode those first
 		gts = [self._decode_tokens(gt) for gt in gts]
 		res_infs = [self._decode_tokens(res_inf) for res_inf in res_infs]
+
+		_res_trains_original = res_trains
 		res_trains = [self._decode_tokens(res_train) for res_train in res_trains]
+		masks_trains = [(self._clean_tokens_same_len(res_train) != 0).astype(np.float) for res_train in _res_trains_original]  # mask all that is not padding
 
 		# stack the batch into two, especially for CIDEr because it requires big reference
 		batch_size = len(gts)
@@ -187,7 +205,7 @@ class Pipeline():
 		cider_resInfs = cider_res[:batch_size]
 		cider_resTrains = cider_res[batch_size:2*batch_size]
 
-		return cider_resInfs, cider_resTrains
+		return cider_resInfs, cider_resTrains, np.array(masks_trains)
 
 
 	def predict_batch_sample(self, img, max_seq_len):
@@ -199,7 +217,7 @@ class Pipeline():
 
 		# define start token and end token
 		start_token = self.tokenizer.vocab_size
-
+		softmax_temp = sample_temperature_schedule(self.scst_optimizer.iterations)
 		img_shape = tf.shape(img)  # shape of the image
 
 		# preprocessing
@@ -221,7 +239,7 @@ class Pipeline():
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
 
-			mask = self.boltzmann_sample(predictions, temperature=sample_temperature_schedule(self.scst_optimizer.iterations))
+			mask = self.boltzmann_sample(predictions, temperature=softmax_temp)
 
 			# get predicted_id from the mask
 			predicted_id = tf.argmax(mask, axis=-1, output_type=tf.int32)
