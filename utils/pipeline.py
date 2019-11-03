@@ -12,8 +12,8 @@ class Pipeline():
 	"""
 	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len):
 		# load tokenizer
-		self.tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(tokenizer_filename)
-		self.pad_token = self.tokenizer.encode(" ")[0]
+		self.tokenizer = TokenTextEncoder_alphanumeric.load_from_file(tokenizer_filename)
+		self.pad_token = 0
 		self.end_token = self.tokenizer.encode(END_TOKEN)[0]
 
 		self.metric_eval = MetricEval(DATADIR, DATATYPE_VAL)

@@ -12,13 +12,13 @@ LOGGING_LEVEL = logging.DEBUG
 
 TOP_K = 2 ** 13  # this is for tokenizer
 
-ACTIVATION = tf.nn.leaky_relu
+ACTIVATION = tf.nn.relu
 KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 8  # for the SCST
-XE_BATCH_SIZE = 10
+BATCH_SIZE = 9  # for the SCST
+XE_BATCH_SIZE = 11
 BUFFER_SIZE = 3000  # this is important for shuffling
 EPOCHS = 100
 XE_EPOCHS = 40  # the amount of epoch cross entropy will go through.

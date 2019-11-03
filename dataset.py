@@ -11,6 +11,7 @@ from pycocoevalcap.eval import COCOEvalCap
 from pathlib import Path
 from random import shuffle
 import albumentations
+from utils.utils import TokenTextEncoder_alphanumeric
 
 # apply augmentation
 def _aug(p=0.5):
@@ -58,10 +59,10 @@ def get_captions_from_anns(anns):
 	:param anns:
 	:return:
 	"""
-	captions = [ann["caption"].lower() + END_TOKEN for ann in anns]  # also put the start and end token, IMPORTANT! Lower case as the dataset, and EOS as end token
+	captions = [ann["caption"] + " " + END_TOKEN for ann in anns]  # also put the start and end token, IMPORTANT! Lower case as the dataset, and EOS as end token
 
 	# preprocess the captions to seperate ',' and '.' from words
-	captions = [re.sub(r'(\s*([.,])\s*)', r" \2 ", caption) for caption in captions]
+	captions = [re.sub(r'(\s*([.,\/#!$%\^&\*;:{}=\-_`~()])\s*)', r" \2 ", caption) for caption in captions]
 
 	return captions
 
@@ -90,14 +91,14 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None, batch_size=BATCH_SIZ
 	captions = get_captions_from_anns(anns)
 	imgIds = [ann["image_id"] for ann in anns]
 
-	tokenizer_file = Path(TOKENIZER_FILENAME + ".subwords")
+	tokenizer_file = Path(TOKENIZER_FILENAME + ".tokens")
 	if tokenizer_file.is_file():
-		tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(TOKENIZER_FILENAME)
+		tokenizer = TokenTextEncoder_alphanumeric.load_from_file(TOKENIZER_FILENAME)
 
 		print("Tokenizer is loaded from", tokenizer_file)
 	else:
 		# preprocess captions into token
-		tokenizer = tfds.features.text.SubwordTextEncoder.build_from_corpus(captions, target_vocab_size=TOP_K, reserved_tokens=[END_TOKEN])
+		tokenizer = TokenTextEncoder_alphanumeric(captions, oov_token=" ", lowercase=True)
 
 		# store the tokenizer
 		tokenizer.save_to_file(TOKENIZER_FILENAME)
@@ -156,7 +157,7 @@ def get_coco_images_captions_generator(dataDir, dataType):
 	# initialize tokenizer
 	tokenizer_file = Path(TOKENIZER_FILENAME)
 	if tokenizer_file.is_file():
-		tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file(TOKENIZER_FILENAME)
+		tokenizer = TokenTextEncoder_alphanumeric.load_from_file(TOKENIZER_FILENAME)
 
 		print("Tokenizer is loaded from", tokenizer_file)
 	else:

@@ -279,10 +279,9 @@ class FeatureExtractor(tf.keras.layers.Layer):
         coatt_output, coatt_output_att_weights = CoAttention_CNN()(regression, classification)
         out = tf.keras.layers.Conv2D(NUM_OF_RETINANET_FILTERS, 3, padding="same", activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(coatt_output)
         out = tf.keras.layers.MaxPooling2D()(out)
-        out = tf.keras.layers.Conv2D(d_model, 3, padding="same", activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(out)
 
-        # # linear layer to d_model
-        # out = tf.keras.layers.Dense(d_model, activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(out)
+        # linear layer to d_model
+        out = tf.keras.layers.Dense(d_model, activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(out)
 
         # remove last layer in the models
         submodel = tf.keras.Model(inputs=[regression_submodel.inputs, classification_submodel.inputs], outputs=[out, coatt_output_att_weights])  # output the coatt weight as well

@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from common.common_definitions import *
-from pycocoevalcap.cider.cider import Cider
 
 def save_fig_png(input_arr, filename):
 	"""
@@ -279,3 +278,125 @@ def weighted_loss(target, pred, loss_function, light_background=True):
 # 			if epoch_min <= curr_epoch:
 # 				return -1
 # 		return 0
+
+class TokenTextEncoder_alphanumeric():
+	"""TextEncoder backed by a list of tokens.
+	Tokenization splits on (and drops) non-alphanumeric characters with
+	regex "\W+".
+	"""
+	def __init__(self,
+	           captions=[],
+	           oov_token="unk",
+	           lowercase=True,
+	            tokenizer=None):
+		self._oov_token = oov_token
+		self._lowercase = lowercase
+
+		if tokenizer is None:
+			self._tokenizer = tf.keras.preprocessing.text.Tokenizer(num_words=TOP_K,
+																	oov_token=oov_token,
+																	lower=lowercase,
+																	filters='!"#$%&()*+-/:;=?@[\]^_`{|}~ ')
+			self._tokenizer.fit_on_texts(captions)
+		else:
+			self._tokenizer = tokenizer
+
+		# put padding in the dictionary
+		self._tokenizer.word_index[''] = 0
+		self._tokenizer.index_word[0] = ''
+
+		self._vocab_size = len(self._tokenizer.word_index)
+
+	def encode(self, s):
+		# convert captions to sequences
+		captions_token = self._tokenizer.texts_to_sequences([s])
+		return captions_token[0]
+
+	def decode(self, ids):
+		return self._tokenizer.sequences_to_texts([ids])[0]
+
+	@property
+	def vocab_size(self):
+		# Plus 1 for pad
+		return self._vocab_size
+
+	@property
+	def tokens(self):
+		return list(self._tokenizer.index_word)
+
+	@property
+	def oov_token(self):
+		return self._oov_token
+
+	@property
+	def lowercase(self):
+		return self._lowercase
+
+	@classmethod
+	def _filename(cls, filename_prefix):
+		return filename_prefix + ".tokens"
+
+	def save_to_file(self, filename_prefix):
+		filename = self._filename(filename_prefix)
+		store_tokenizer_to_path(self._tokenizer, filename)
+
+	@classmethod
+	def load_from_file(cls, filename_prefix):
+		filename = cls._filename(filename_prefix)
+		_tokenizer = load_tokenizer_from_path(filename)
+		_lowercase = _tokenizer.lower
+		_oov_token = _tokenizer.oov_token
+		return TokenTextEncoder_alphanumeric(oov_token=_oov_token,lowercase=_lowercase, tokenizer=_tokenizer)
+
+
+import json
+
+def _tokenizer_from_json(json_string):
+    """Parses a JSON tokenizer configuration file and returns a
+    tokenizer instance.
+    # Arguments
+        json_string: JSON string encoding a tokenizer configuration.
+    # Returns
+        A Keras Tokenizer instance
+    """
+    tokenizer_config = json.loads(json_string)
+    config = tokenizer_config.get('config')
+
+    word_counts = json.loads(config.pop('word_counts'))
+    word_docs = json.loads(config.pop('word_docs'))
+    index_docs = json.loads(config.pop('index_docs'))
+    # Integer indexing gets converted to strings with json.dumps()
+    index_docs = {int(k): v for k, v in index_docs.items()}
+    index_word = json.loads(config.pop('index_word'))
+    index_word = {int(k): v for k, v in index_word.items()}
+    word_index = json.loads(config.pop('word_index'))
+
+    tokenizer = tf.keras.preprocessing.text.Tokenizer(**config)
+    tokenizer.word_counts = word_counts
+    tokenizer.word_docs = word_docs
+    tokenizer.index_docs = index_docs
+    tokenizer.word_index = word_index
+    tokenizer.index_word = index_word
+
+    return tokenizer
+
+def load_tokenizer_from_path(path):
+	"""
+	:param path:
+	:return:
+	"""
+	with open(path) as f:
+		data = json.load(f)
+		tokenizer = _tokenizer_from_json(data)
+
+	return tokenizer
+
+def store_tokenizer_to_path(tokenizer, path):
+	"""
+	:param tokenizer: Tokenizer object to be stored
+	:param path: designated path for it
+	:return:
+	"""
+	tokenizer_json = tokenizer.to_json()
+	with open(path, 'w', encoding='utf-8') as f:
+		f.write(json.dumps(tokenizer_json, ensure_ascii=False))
