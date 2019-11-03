@@ -82,7 +82,6 @@ N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the 
 BASELINE_INDEX = 2  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
 # SCST's parameter
-MIN_EPSILON = 1e-5
 SCST_LEARNING_RATE = 1e-6
 REWARD_DISCOUNT_FACTOR = 1.  # as in the SCST paper, the CIDEr is always in range above 100, while what I have is always in range 1
 MAX_TEMPERATURE = 1.

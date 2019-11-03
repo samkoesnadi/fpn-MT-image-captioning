@@ -5,6 +5,7 @@ Pipeline for the model to train and predict
 from models.transformer import *
 from tqdm import tqdm
 import tensorflow_probability as tfp
+from pycocoevalcap.cider.cider import Cider
 
 class Pipeline():
 	"""
@@ -27,10 +28,10 @@ class Pipeline():
 		                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
 		# define optimizer and loss
-		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS)
+		self.learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)
 
-		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, beta_1=0.9, beta_2=0.98, epsilon=MIN_EPSILON, amsgrad=True, clipnorm=1.)
-		self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, beta_1=0.9, beta_2=0.98, epsilon=MIN_EPSILON, amsgrad=True, clipnorm=1.)
+		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, beta_1=0.9, beta_2=0.98, amsgrad=True, clipnorm=1.)
+		self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, beta_1=0.9, beta_2=0.98, amsgrad=True, clipnorm=1.)
 
 		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 		self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
@@ -63,10 +64,7 @@ class Pipeline():
 		loss_ = self.loss_object_sparse(real, pred)
 		loss_ *= mask
 
-		# sum up and normalize each sequence
-		loss_ = tf.reduce_sum(loss_, 1) / tf.reduce_sum(mask, 1)
-
-		return tf.reduce_mean(loss_)
+		return tf.reduce_sum(loss_)
 
 	def loss_scst_softmax(self, reward, predictions, masks, masks_trains):
 		"""
@@ -79,7 +77,7 @@ class Pipeline():
 		log_probs = self.loss_object(masks, predictions)  # log_softmax the prediction and mask it with the sample
 		masked_log_probs = log_probs * masks_trains
 
-		loss_ = reward * tf.reduce_sum(masked_log_probs, 1) / tf.reduce_sum(masks_trains, 1)  # averaged sentece
+		loss_ = reward * tf.reduce_sum(masked_log_probs, 1)  # averaged sentece
 
 		return tf.reduce_sum(loss_)
 
