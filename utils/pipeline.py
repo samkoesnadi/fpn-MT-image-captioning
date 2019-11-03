@@ -28,7 +28,7 @@ class Pipeline():
 		                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
 		# define optimizer and loss
-		self.learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)
+		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS)
 
 		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, beta_1=0.9, beta_2=0.98, amsgrad=True, clipnorm=1.)
 		self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, beta_1=0.9, beta_2=0.98, amsgrad=True, clipnorm=1.)
