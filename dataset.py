@@ -103,9 +103,6 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None, batch_size=BATCH_SIZ
 		# store the tokenizer
 		tokenizer.save_to_file(TOKENIZER_FILENAME)
 
-	# sort captions based on length
-	captions.sort(key=len)
-
 	# convert captions to sequences
 	captions_token = tokenizer_encode(tokenizer, captions)
 
@@ -124,9 +121,13 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None, batch_size=BATCH_SIZ
 	imgs = coco.loadImgs(imgIds)
 	img_paths = [os.path.join(dataDir, "images", dataType, img["file_name"]) for img in imgs]
 
+	# sort captions based on length and also the img with it
+	data_raw = list(zip(img_paths, captions_token))
+	data_raw.sort(key=lambda x: len(x[1]))
+
 	# generator for input to dataset
 	def dataset_generator():
-		for (img_path, caption_token) in zip(img_paths, captions_token):
+		for (img_path, caption_token) in data_raw:
 			yield (img_path, caption_token)
 
 	# Feel free to change batch_size according to your system configuration
