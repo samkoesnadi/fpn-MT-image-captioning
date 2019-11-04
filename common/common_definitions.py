@@ -19,7 +19,7 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
 BATCH_SIZE = 9  # for the SCST
 XE_BATCH_SIZE = 11
-BUFFER_SIZE = 3000  # this is important for shuffling
+BUFFER_SIZE = 1000  # this is important for shuffling
 EPOCHS = 100
 XE_EPOCHS = 40  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 4
@@ -82,9 +82,11 @@ N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the 
 BASELINE_INDEX = 2  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
 # SCST's parameter
+XE_LEARNING_EPSILON = 1e-7
+SCST_LEARNING_EPSILON = 1e-6
 SCST_LEARNING_RATE = 1e-6
 REWARD_DISCOUNT_FACTOR = 1.  # as in the SCST paper, the CIDEr is always in range above 100, while what I have is always in range 1
-MAX_TEMPERATURE = 1.
+MAX_TEMPERATURE = 1.5
 
 logging.basicConfig(level=LOGGING_LEVEL)
 

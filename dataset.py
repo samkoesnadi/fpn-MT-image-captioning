@@ -103,6 +103,9 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None, batch_size=BATCH_SIZ
 		# store the tokenizer
 		tokenizer.save_to_file(TOKENIZER_FILENAME)
 
+	# sort captions based on length
+	captions.sort(key=len)
+
 	# convert captions to sequences
 	captions_token = tokenizer_encode(tokenizer, captions)
 

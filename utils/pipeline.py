@@ -30,8 +30,8 @@ class Pipeline():
 		# define optimizer and loss
 		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS)
 
-		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, beta_1=0.9, beta_2=0.98, amsgrad=True, clipnorm=1.)
-		self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, beta_1=0.9, beta_2=0.98, amsgrad=True, clipnorm=1.)
+		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipnorm=1.)
+		self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
 
 		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 		self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
@@ -64,7 +64,7 @@ class Pipeline():
 		loss_ = self.loss_object_sparse(real, pred)
 		loss_ *= mask
 
-		return tf.reduce_sum(loss_)
+		return tf.reduce_mean(loss_)
 
 	def loss_scst_softmax(self, reward, predictions, masks, masks_trains):
 		"""
@@ -77,9 +77,9 @@ class Pipeline():
 		log_probs = self.loss_object(masks, predictions)  # log_softmax the prediction and mask it with the sample
 		masked_log_probs = log_probs * masks_trains
 
-		loss_ = reward * tf.reduce_sum(masked_log_probs, 1)  # averaged sentece
+		loss_ = tf.broadcast_to(tf.expand_dims(reward * BATCH_SIZE, -1), tf.shape(masked_log_probs)) * masked_log_probs
 
-		return tf.reduce_sum(loss_)
+		return tf.reduce_mean(loss_)
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument
