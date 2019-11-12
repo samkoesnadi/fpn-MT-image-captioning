@@ -11,7 +11,7 @@ class Pipeline():
 	"""
 	The main class that runs shit
 	"""
-	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len):
+	def __init__(self, tokenizer_filename, checkpoint_path, max_seq_len, iter_per_epochs=None):
 		# load tokenizer
 		self.tokenizer = TokenTextEncoder_alphanumeric.load_from_file(tokenizer_filename)
 		self.pad_token = 0
@@ -20,7 +20,7 @@ class Pipeline():
 		self.metric_eval = MetricEval(DATADIR, DATATYPE_VAL)
 		self.max_seq_len = max_seq_len
 
-		self.target_vocab_size = self.tokenizer.vocab_size  # the total length of index
+		self.target_vocab_size = self.tokenizer.num_words  # the total length of index
 		input_vocab_size = math.ceil(IMAGE_INPUT_SIZE / 16) ** 2  # the input vocab size is the last dimension from Feature Extractor, i.e. if the input is 512, max input_vocab_size would be 32*32
 
 		# instance of Transformers
@@ -28,10 +28,12 @@ class Pipeline():
 		                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
 		# define optimizer and loss
-		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS)
+		self.learning_rate = CustomSchedule(iter_per_epochs) if iter_per_epochs is not None else MIN_LEARNING_RATE
 
-		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipnorm=1.)
-		self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
+		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, clipnorm=1.)
+
+		# self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipnorm=1.)
+		# self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
 
 		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 		self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
@@ -43,8 +45,7 @@ class Pipeline():
 
 		# checkpoint
 		self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
-		                                optimizer=self.optimizer,
-		                                scst_optimizer=self.scst_optimizer)
+		                                optimizer=self.optimizer)
 
 		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=MAX_CKPT_TO_KEEP)
 
@@ -214,7 +215,7 @@ class Pipeline():
 		"""
 
 		# define start token and end token
-		start_token = self.tokenizer.vocab_size
+		start_token = self.tokenizer.num_words
 		softmax_temp = sample_temperature_schedule(self.scst_optimizer.iterations)
 		img_shape = tf.shape(img)  # shape of the image
 
@@ -257,7 +258,7 @@ class Pipeline():
 		"""
 
 		# define start token and end token
-		start_token = self.tokenizer.vocab_size
+		start_token = self.tokenizer.num_words
 
 		img_shape = tf.shape(img)  # shape of the image
 
@@ -308,7 +309,7 @@ class Pipeline():
 		:param img: (height, width, 3)
 		:return: beam_result, attention_weights, coatt_weights ... attention_weights are from the decoder, coatt_weights from RetinaNet in the encoder
 		"""
-		start_token = self.tokenizer.vocab_size
+		start_token = self.tokenizer.num_words
 		end_token = self.end_token
 
 		# preprocessing

@@ -11,3 +11,4 @@ git+https://github.com/salaniz/pycocoevalcap
 scikit-image
 albumentations
 tensorflow_probability
+pandas

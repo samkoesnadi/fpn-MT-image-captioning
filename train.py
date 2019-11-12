@@ -30,7 +30,7 @@ if __name__ == "__main__":
 		else:
 			start_epoch_acc = 0.
 
-		master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len)  # master pipeline
+		master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len, train_set_len)  # master pipeline
 
 		# store the max_seq_len to additional_info as for testing purpose you would not create train_datasets
 		additional_info["max_seq_len"] = max_seq_len

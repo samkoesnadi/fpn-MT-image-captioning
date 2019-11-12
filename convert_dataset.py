@@ -42,7 +42,8 @@ def convert_store_format_to_coco(list_of_files, parentDir_string, image_dir, dat
 	# mkdir the folder to store images
 	imgsDir = os.path.join(dataDir, "images", dataType)
 	try:
-		os.mkdir(imgsDir, 755)
+		os.makedirs(imgsDir, 755)
+		os.mkdir(os.path.join(dataDir, "annotations"), 755)
 	except FileExistsError:
 		pass
 
@@ -63,15 +64,15 @@ def convert_store_format_to_coco(list_of_files, parentDir_string, image_dir, dat
 			impression = (root.find(".//AbstractText[@Label=\"IMPRESSION\"]").text)
 
 			# if None then convert to empty string
-			findings = '' if findings is None else findings
-			impression = '' if impression is None else impression
+			findings = '' if findings is None else FINDINGS_TOKEN + ' ' + findings
+			impression = '' if impression is None else IMPRESSION_TOKEN + ' ' + impression
 
 			# caption
-			caption = impression + ' ' + findings
+			caption = findings + ' ' + impression
 
 			# filter the caption
 			caption = re.sub(r'[.](\s*[.])+', '.', caption)  # filter double punctuation
-			caption = re.sub(r'\d\s*[.]', '', caption)  # filter number, then dot
+			# caption = re.sub(r'\d\s*[.]', '', caption)  # filter number, then dot. TODO: check if this is necessary
 
 			# iterate through the image and write
 			for imgPath in root.findall("./parentImage"):

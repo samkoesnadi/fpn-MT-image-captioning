@@ -21,10 +21,6 @@ def _aug(p=0.5):
 		albumentations.augmentations.transforms.ShiftScaleRotate(scale_limit=(-.2,.2), rotate_limit=10, p=0.5)
 	], p=p)
 
-# Find the maximum length of any caption in our dataset
-def calc_max_length(tensor):
-    return max(len(t) for t in tensor)
-
 def load_image(img_path, augmentation=None):
 	# load image
 	img = tf.io.read_file(img_path)
@@ -42,7 +38,7 @@ def load_image(img_path, augmentation=None):
 	return img
 
 def tokenizer_encode(tokenizer, captions):
-	captions_token = [[tokenizer.vocab_size] + tokenizer.encode(caption) for caption in captions]  # vocab_size is <start>, vocab_end is part of the token
+	captions_token = [[tokenizer.num_words] + tokenizer.encode(caption)[:MAX_WORDS_LEN] for caption in captions]  # vocab_size is <start>, vocab_end is part of the token and limit the length as well
 
 	return captions_token
 
@@ -123,7 +119,8 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None, batch_size=BATCH_SIZ
 
 	# sort captions based on length and also the img with it
 	data_raw = list(zip(img_paths, captions_token))
-	data_raw.sort(key=lambda x: len(x[1]))
+	# data_raw.sort(key=lambda x: len(x[1]))  # sort the data
+	random.shuffle(data_raw)  # randomize the data_raw
 
 	# generator for input to dataset
 	def dataset_generator():
@@ -136,7 +133,7 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None, batch_size=BATCH_SIZ
 	# set augmentation
 	augmentation = _aug(p=P_AUGMENTATION) if P_AUGMENTATION > 0 else None
 	image_dataset = image_dataset.map(lambda img, caption: load_image_and_preprocess(img, caption, augmentation), num_parallel_calls=tf.data.experimental.AUTOTUNE)  # load the image
-	image_dataset = image_dataset.shuffle(buffer_size).padded_batch(batch_size, padded_shapes=([None, None, None], [-1]), drop_remainder=True)  # shuffle and batch with length of padding according to the the batch
+	image_dataset = image_dataset.shuffle(buffer_size).padded_batch(batch_size, padded_shapes=([None, None, None], [max_seq_len]), drop_remainder=True)  # shuffle and batch with length of padding according to the the batch
 	image_dataset = image_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
 	return image_dataset, max_seq_len, set_len

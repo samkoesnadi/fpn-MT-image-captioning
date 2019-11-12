@@ -10,6 +10,7 @@ import pickle
 import re
 import time
 import math
+import random
 
 # You'll generate plots of attention in order to see which parts of an image
 # our model focuses on during captioning
