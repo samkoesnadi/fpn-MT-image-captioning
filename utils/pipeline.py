@@ -140,7 +140,7 @@ class Pipeline():
 			loss = self.loss_scst_softmax(REWARD_DISCOUNT_FACTOR * reward_w_baseline, predictions, sample_masks, tf.cast(masks_trains, tf.float32))  # reward with baseline
 
 		gradients = tape.gradient(loss, self.transformer.trainable_variables)
-		self.scst_optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
+		self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
 
 		self.train_loss(loss)
 		self.train_reward_scst_train(tf.reduce_sum(cider_resTrains))
@@ -216,7 +216,7 @@ class Pipeline():
 
 		# define start token and end token
 		start_token = self.tokenizer.num_words
-		softmax_temp = sample_temperature_schedule(self.scst_optimizer.iterations)
+		softmax_temp = sample_temperature_schedule(self.optimizer.iterations)
 		img_shape = tf.shape(img)  # shape of the image
 
 		# preprocessing
