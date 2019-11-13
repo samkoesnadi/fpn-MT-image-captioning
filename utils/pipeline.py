@@ -30,7 +30,7 @@ class Pipeline():
 		# define optimizer and loss
 		self.learning_rate = CustomSchedule(iter_per_epochs) if iter_per_epochs is not None else MIN_LEARNING_RATE
 
-		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True)
+		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, clipvalue=5., epsilon=1e-6)
 
 		# self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipnorm=1.)
 		# self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
