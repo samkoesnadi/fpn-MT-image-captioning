@@ -33,17 +33,8 @@ def analyze_dataset(dataDir, dataType, n_test=None):
 	captions = get_captions_from_anns(anns)
 	imgIds = [ann["image_id"] for ann in anns]
 
-	tokenizer_file = Path(TOKENIZER_FILENAME + ".tokens")
-	if tokenizer_file.is_file():
-		tokenizer = TokenTextEncoder_alphanumeric.load_from_file(TOKENIZER_FILENAME)
-
-		print("Tokenizer is loaded from", tokenizer_file)
-	else:
-		# preprocess captions into token
-		tokenizer = TokenTextEncoder_alphanumeric(captions, oov_token=" ", lowercase=True)
-
-		# store the tokenizer
-		tokenizer.save_to_file(TOKENIZER_FILENAME)
+	# preprocess captions into token
+	tokenizer = TokenTextEncoder_alphanumeric(captions, oov_token=" ", lowercase=True)
 
 	# convert captions to sequences
 	captions_token = tokenizer_encode(tokenizer, captions)

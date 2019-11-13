@@ -292,6 +292,7 @@ class Encoder(tf.keras.layers.Layer):
 
 			_x = tf.reshape(_x, (_x_shape[0], seq_len, _x_shape[3]))
 			_x = self.layernorm1(_x)
+			_x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))  # multiply with d_model
 
 			_x += self.pos_encoding[:, :seq_len, :]
 			_x = self.dropout1s[i_x](_x, training=training)

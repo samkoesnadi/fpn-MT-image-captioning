@@ -45,7 +45,7 @@ def tokenizer_encode(tokenizer, captions):
 def load_image_and_preprocess(img_path, caption, augmentation=None):
 	# load image
 	img = load_image(img_path, augmentation)
-	img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
+	img = tf.keras.applications.mobilenet_v2.preprocess_input(img)  # TODO: check if this is necessary
 
 	return img, caption
 

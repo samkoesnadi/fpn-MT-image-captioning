@@ -11,7 +11,7 @@ LOG_ATTENTION = True  # to output the attention layers as well
 LOGGING_LEVEL = logging.DEBUG
 
 ACTIVATION = tf.nn.relu
-KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
+KERNEL_INITIALIZER = tf.keras.initializers.glorot_uniform()
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
