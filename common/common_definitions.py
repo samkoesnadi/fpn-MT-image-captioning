@@ -11,7 +11,7 @@ LOG_ATTENTION = True  # to output the attention layers as well
 LOGGING_LEVEL = logging.DEBUG
 
 ACTIVATION = tf.nn.relu
-KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
+KERNEL_INITIALIZER = tf.keras.initializers.glorot_uniform()
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
@@ -19,7 +19,7 @@ BATCH_SIZE = 10  # for the SCST
 XE_BATCH_SIZE = 12
 BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 100
-XE_EPOCHS = 20  # the amount of epoch cross entropy will go through.
+XE_EPOCHS = 30  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 1
 N_VAL_DATASET = 50  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
@@ -39,7 +39,7 @@ TOP_K = 1000  # this is for tokenizer
 # MIN_EPOCH_TO_BREAK = EPOCHS // 2
 MIN_EPOCH_TO_EVAL = 10
 MIN_EPOCH_TO_SAVE_CKPT = 5
-MAX_CKPT_TO_KEEP = 300
+MAX_CKPT_TO_KEEP = 10
 # GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
 WARM_UP_STEPS = 4000  # for scheduler
 CKPT_INDEX_RESTORE = -1  # -1 for the last one
@@ -84,9 +84,9 @@ N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the 
 BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
 # SCST's parameter
-# XE_LEARNING_EPSILON = 1e-7
-# SCST_LEARNING_EPSILON = 1e-6
-MIN_LEARNING_RATE = 1e-5
+XE_LEARNING_EPSILON = 1e-7
+SCST_LEARNING_EPSILON = 1e-6
+SCST_LEARNING_RATE = 1e-5
 REWARD_DISCOUNT_FACTOR = 1.  # as in the SCST paper, the CIDEr is always in range above 100, while what I have is always in range 1
 MAX_TEMPERATURE = 1.5
 

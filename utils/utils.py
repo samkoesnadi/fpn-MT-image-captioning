@@ -151,39 +151,39 @@ def sample_temperature_schedule(t):
 
 	return tf.maximum(1., MAX_TEMPERATURE * tf.exp(-MAX_TEMPERATURE * 10 ** -4 * t))
 
-class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):  # this one will go down second time some how
-	def __init__(self, set_len):
-		super(CustomSchedule, self).__init__()
-
-		self.iter_per_epochs = set_len
-		self.lr = MIN_LEARNING_RATE
-
-	@tf.function
-	def __call__(self, step):
-		epoch = step // self.iter_per_epochs + 1  # starts at epoch 1
-
-		if epoch <= 6:
-			self.lr = tf.minimum(epoch * 1e-4, 3e-4)
-		else:
-			self.lr /= 2.
-
-		return self.lr
-
 # class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):  # this one will go down second time some how
-# 	def __init__(self, d_model, warmup_steps=4000, multiplier=1.):
+# 	def __init__(self, set_len):
 # 		super(CustomSchedule, self).__init__()
 #
-# 		self.d_model = d_model
-# 		self.d_model = tf.cast(self.d_model, tf.float32)
+# 		self.iter_per_epochs = set_len
+# 		self.lr = MIN_LEARNING_RATE
 #
-# 		self.warmup_steps = warmup_steps
-# 		self.multiplier = multiplier
-#
+# 	@tf.function
 # 	def __call__(self, step):
-# 		arg1 = tf.math.rsqrt(step) / tf.maximum((step - self.warmup_steps) * self.multiplier / (self.warmup_steps * 2), 1)
-# 		arg2 = step * (self.warmup_steps ** -1.5)
+# 		epoch = step // self.iter_per_epochs + 1  # starts at epoch 1
 #
-# 		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+# 		if epoch <= 6:
+# 			self.lr = tf.minimum(epoch * 1e-4, 3e-4)
+# 		else:
+# 			self.lr /= 2.
+#
+# 		return self.lr
+
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):  # this one will go down second time some how
+	def __init__(self, d_model, warmup_steps=4000, multiplier=1.):
+		super(CustomSchedule, self).__init__()
+
+		self.d_model = d_model
+		self.d_model = tf.cast(self.d_model, tf.float32)
+
+		self.warmup_steps = warmup_steps
+		self.multiplier = multiplier
+
+	def __call__(self, step):
+		arg1 = tf.math.rsqrt(step) / tf.maximum((step - self.warmup_steps) * self.multiplier / (self.warmup_steps * 2), 1)
+		arg2 = step * (self.warmup_steps ** -1.5)
+
+		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
 # class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 # 	def __init__(self, d_model, warmup_steps=4000):
