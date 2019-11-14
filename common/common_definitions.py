@@ -107,3 +107,7 @@ if not USE_GPU:
 mirrored_strategy = tf.distribute.MirroredStrategy()  # strategy for distributed training
 
 logging.info ('Number of GPU devices: {}'.format(mirrored_strategy.num_replicas_in_sync))
+
+# multiply the batch size according to the num of replicas
+BATCH_SIZE *= mirrored_strategy.num_replicas_in_sync
+XE_BATCH_SIZE *= mirrored_strategy.num_replicas_in_sync
