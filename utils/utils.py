@@ -149,7 +149,7 @@ def sample_temperature_schedule(t):
 	# cast t to float32
 	t = tf.cast(t, tf.float32)
 
-	return tf.maximum(1., MAX_TEMPERATURE * tf.exp(-MAX_TEMPERATURE * 10 ** -4 * t))
+	return tf.maximum(.5, MAX_TEMPERATURE * tf.exp(-MAX_TEMPERATURE * 10 ** -4 * t))
 
 # class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):  # this one will go down second time some how
 # 	def __init__(self, set_len):

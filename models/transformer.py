@@ -114,12 +114,12 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 		self.depth = d_model // self.num_heads
 
-		self.wq = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)
-		self.wk = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)
-		self.wv = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)
+		self.wq = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER, kernel_regularizer=tf.keras.regularizers.l2(KERNEL_REGULARIZER_LAMBDA))
+		self.wk = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER, kernel_regularizer=tf.keras.regularizers.l2(KERNEL_REGULARIZER_LAMBDA))
+		self.wv = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER, kernel_regularizer=tf.keras.regularizers.l2(KERNEL_REGULARIZER_LAMBDA))
 
 		self.dense = tf.keras.layers.Dense(d_model,
-		                                   kernel_initializer=KERNEL_INITIALIZER)  # check if activation is needed here
+		                                   kernel_initializer=KERNEL_INITIALIZER, kernel_regularizer=tf.keras.regularizers.l2(KERNEL_REGULARIZER_LAMBDA))  # check if activation is needed here
 
 	def split_heads(self, x, batch_size):
 		"""Split the last dimension into (num_heads, depth).
@@ -163,9 +163,9 @@ class EncoderLayer(tf.keras.layers.Layer):
 
 		# Point wise feed forward network
 		self.ffn1 = tf.keras.layers.Dense(dff, activation=ACTIVATION,
-		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
+		                                  kernel_initializer=KERNEL_INITIALIZER, kernel_regularizer=tf.keras.regularizers.l2(KERNEL_REGULARIZER_LAMBDA))  # (batch_size, seq_len, dff)
 		self.ffn2 = tf.keras.layers.Dense(d_model,
-		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
+		                                  kernel_initializer=KERNEL_INITIALIZER, kernel_regularizer=tf.keras.regularizers.l2(KERNEL_REGULARIZER_LAMBDA))  # (batch_size, seq_len, d_model)
 
 		self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 		self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
@@ -209,9 +209,9 @@ class DecoderLayer(tf.keras.layers.Layer):
 
 		# Point wise feed forward network
 		self.ffn1 = tf.keras.layers.Dense(dff, activation=ACTIVATION,
-		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
+		                                  kernel_initializer=KERNEL_INITIALIZER, kernel_regularizer=tf.keras.regularizers.l2(KERNEL_REGULARIZER_LAMBDA))  # (batch_size, seq_len, dff)
 		self.ffn2 = tf.keras.layers.Dense(d_model,
-		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
+		                                  kernel_initializer=KERNEL_INITIALIZER, kernel_regularizer=tf.keras.regularizers.l2(KERNEL_REGULARIZER_LAMBDA))  # (batch_size, seq_len, d_model)
 
 		self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 		self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)

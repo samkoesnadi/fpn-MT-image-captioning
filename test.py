@@ -10,7 +10,7 @@ from dataset import *
 import shutil
 
 if __name__ == "__main__":
-	IMAGE_FILE_PATH = "test_2.jpg"
+	IMAGE_FILE_PATH = "CXR86_IM-2380-1001.png"
 	imgId = 0
 
 	max_seq_len = load_additional_info(ADDITIONAL_FILENAME)["max_seq_len"]

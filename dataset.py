@@ -35,6 +35,8 @@ def load_image(img_path, augmentation=None):
 		                          img_dtype)  # augment the image
 		img = tf.reshape(image, shape=img_shape)
 
+	img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
+
 	return img
 
 def tokenizer_encode(tokenizer, captions):
@@ -45,7 +47,6 @@ def tokenizer_encode(tokenizer, captions):
 def load_image_and_preprocess(img_path, caption, augmentation=None):
 	# load image
 	img = load_image(img_path, augmentation)
-	img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
 
 	return img, caption
 
