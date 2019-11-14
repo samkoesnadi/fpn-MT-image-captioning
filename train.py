@@ -39,7 +39,7 @@ if __name__ == "__main__":
 		if START_EPOCH is None:
 			start_epoch = 0
 			if master.ckpt_manager.latest_checkpoint:
-				start_epoch = int(master.ckpt_manager.latest_checkpoint.split("-")[-1])
+				start_epoch = int(master.ckpt_manager.latest_checkpoint.split("-")[-1]) - 1
 		else:
 			start_epoch = START_EPOCH
 
