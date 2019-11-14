@@ -65,7 +65,7 @@ class Pipeline():
 		loss_ = self.loss_object_sparse(real, pred)
 		loss_ *= mask
 
-		return tf.reduce_mean(loss_)
+		return loss_
 
 	def loss_scst_softmax(self, reward, predictions, masks, masks_trains):
 		"""
@@ -80,71 +80,93 @@ class Pipeline():
 
 		loss_ = tf.broadcast_to(tf.expand_dims(reward * BATCH_SIZE, -1), tf.shape(masked_log_probs)) * masked_log_probs
 
-		return tf.reduce_mean(loss_)
+		return loss_
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument
 	# tensors.
 	# batch sizes (the last batch is smaller), use input_signature to specify
 	# more generic shapes.
-	@tf.function(input_signature=(tf.TensorSpec(shape=(XE_BATCH_SIZE, IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 3), dtype=tf.float32),tf.TensorSpec(shape=[XE_BATCH_SIZE, None], dtype=tf.float32)))
-	def train_step(self, img, caption_token):  # this one get the input from ground truth
-		tar_inp = caption_token[:, :-1]
-		tar_real = caption_token[:, 1:]
+	@tf.function
+	def train_step(self, dist_inputs):  # this one get the input from ground truth
+		def step_fn(inputs):
+			img, caption_token = inputs
+			tar_inp = caption_token[:, :-1]
+			tar_real = caption_token[:, 1:]
 
-		_mask = create_masks(tar_inp)
+			_mask = create_masks(tar_inp)
 
-		with tf.GradientTape() as tape:
-			predictions, _ = self.transformer(img, tar_inp,
-			                                  True,
-			                                  _mask, input_is_enc_output=False)
-			loss = self.loss(tar_real, predictions)
+			with tf.GradientTape() as tape:
+				predictions, _ = self.transformer(img, tar_inp,
+				                                  True,
+				                                  _mask, input_is_enc_output=False)
+				loss_raw = self.loss(tar_real, predictions)
+				loss = tf.reduce_sum(loss_raw) * (1.0 / XE_BATCH_SIZE)
 
-		gradients = tape.gradient(loss, self.transformer.trainable_variables)
-		self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
+			gradients = tape.gradient(loss, self.transformer.trainable_variables)
+			self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
 
-		self.train_loss(loss)
+			self.train_loss(loss)
 
-	@tf.function(input_signature=(
-	tf.TensorSpec(shape=(BATCH_SIZE, IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE, 3), dtype=tf.float32),
-	tf.TensorSpec(shape=[BATCH_SIZE, None], dtype=tf.float32)))
-	def scst_train_step(self, img, caption_token):
-		tar_inp = caption_token[:, :-1]
-		tar_real = caption_token[:, 1:]
+			return loss_raw
 
-		# cast tar_real's type
-		tar_real = tf.cast(tar_real, tf.int32)
+		per_example_losses = mirrored_strategy.experimental_run_v2(
+			step_fn, args=(dist_inputs,))
+		mean_loss = mirrored_strategy.reduce(
+			tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
+		return mean_loss
 
-		caption_token_shape = tf.shape(caption_token)  # shape of the target
+	@tf.function
+	def scst_train_step(self, dist_inputs):
+		def step_fn(inputs):
+			img, caption_token = inputs
+			tar_inp = caption_token[:, :-1]
+			tar_real = caption_token[:, 1:]
 
-		# inference prediction's result
-		inf_predict_result = self.predict_batch_argmax(img, caption_token_shape[1])
+			# cast tar_real's type
+			tar_real = tf.cast(tar_real, tf.int32)
 
-		# training prediction's result
-		_mask = create_masks(tar_inp)
-		train_predict_result, sample_masks = self.predict_batch_sample(img, caption_token_shape[1])  # the start token is still there
+			caption_token_shape = tf.shape(caption_token)  # shape of the target
 
-		# compute loss and gradient here
-		with tf.GradientTape(watch_accessed_variables=False) as tape:
-			tape.watch(self.transformer.trainable_variables)
-			predictions, _ = self.transformer(img, train_predict_result[:, :-1],
-			                                  True,
-			                                  _mask, input_is_enc_output=False)
+			# inference prediction's result
+			inf_predict_result = self.predict_batch_argmax(img, caption_token_shape[1])
 
-			# cider_resInfs, cider_resTrains = self.get_scst_reward(tar_real, inf_predict_result, train_predict_result)
-			cider_resInfs, cider_resTrains, masks_trains = tf.numpy_function(self.get_scst_reward, inp=[tar_real, inf_predict_result, train_predict_result[:, 1:]], Tout=[tf.float64, tf.float64, tf.float64])
+			# training prediction's result
+			_mask = create_masks(tar_inp)
+			train_predict_result, sample_masks = self.predict_batch_sample(img, caption_token_shape[1])  # the start token is still there
 
-			# compute loss
-			reward_w_baseline = tf.cast(cider_resTrains - cider_resInfs, tf.float32)  # reward with baseline  - do not back propagate this one
+			# compute loss and gradient here
+			with tf.GradientTape(watch_accessed_variables=False) as tape:
+				tape.watch(self.transformer.trainable_variables)
+				predictions, _ = self.transformer(img, train_predict_result[:, :-1],
+				                                  True,
+				                                  _mask, input_is_enc_output=False)
 
-			loss = self.loss_scst_softmax(REWARD_DISCOUNT_FACTOR * reward_w_baseline, predictions, sample_masks, tf.cast(masks_trains, tf.float32))  # reward with baseline
+				# cider_resInfs, cider_resTrains = self.get_scst_reward(tar_real, inf_predict_result, train_predict_result)
+				cider_resInfs, cider_resTrains, masks_trains = tf.numpy_function(self.get_scst_reward, inp=[tar_real, inf_predict_result, train_predict_result[:, 1:]], Tout=[tf.float64, tf.float64, tf.float64])
 
-		gradients = tape.gradient(loss, self.transformer.trainable_variables)
-		self.scst_optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
+				# compute loss
+				reward_w_baseline = tf.cast(cider_resTrains - cider_resInfs, tf.float32)  # reward with baseline  - do not back propagate this one
 
-		self.train_loss(loss)
-		self.train_reward_scst_train(tf.reduce_sum(cider_resTrains))
-		self.train_reward_scst_infer(tf.reduce_sum(cider_resInfs))
+				loss_raw = self.loss_scst_softmax(REWARD_DISCOUNT_FACTOR * reward_w_baseline, predictions, sample_masks, tf.cast(masks_trains, tf.float32))  # reward with baseline
+
+				loss = tf.reduce_sum(loss_raw) * (1.0 / BATCH_SIZE)
+
+			gradients = tape.gradient(loss, self.transformer.trainable_variables)
+			self.scst_optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
+
+			self.train_loss(loss)
+			self.train_reward_scst_train(tf.reduce_sum(cider_resTrains))
+			self.train_reward_scst_infer(tf.reduce_sum(cider_resInfs))
+
+			return loss_raw
+
+		per_example_losses = mirrored_strategy.experimental_run_v2(
+			step_fn, args=(dist_inputs,))
+		mean_loss = mirrored_strategy.reduce(
+			tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
+		return mean_loss
+
 
 	def _clean_tokens(self, tokens):
 		target_index = np.where(tokens == self.end_token)[0]

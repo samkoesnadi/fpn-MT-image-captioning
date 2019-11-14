@@ -104,4 +104,6 @@ if not USE_GPU:
 	else:
 		print("TF does not use GPU")
 
-mirrored_strategy = tf.distribute.OneDeviceStrategy(device="/gpu:0")  # strategy for distributed training
+mirrored_strategy = tf.distribute.MirroredStrategy()  # strategy for distributed training
+
+logging.info ('Number of GPU devices: {}'.format(mirrored_strategy.num_replicas_in_sync))

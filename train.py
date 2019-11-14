@@ -24,12 +24,6 @@ if __name__ == "__main__":
 	if IS_TRAINING:
 		train_datasets, max_seq_len, train_set_len = get_coco_images_dataset(DATADIR, DATATYPE_TRAIN, N_TRAIN_DATASET, batch_size=XE_BATCH_SIZE)
 
-		# get the beginning accuracy if available (for SmartCheckpointSaver)
-		if key_epoch_acc in additional_info:
-			start_epoch_acc = additional_info[key_epoch_acc]
-		else:
-			start_epoch_acc = 0.
-
 		master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len, train_set_len)  # master pipeline
 
 		# store the max_seq_len to additional_info as for testing purpose you would not create train_datasets
@@ -45,7 +39,7 @@ if __name__ == "__main__":
 		if START_EPOCH is None:
 			start_epoch = 0
 			if master.ckpt_manager.latest_checkpoint:
-				start_epoch = int(master.ckpt_manager.latest_checkpoint.split("-")[-1]) - 1
+				start_epoch = int(master.ckpt_manager.latest_checkpoint.split("-")[-1])
 		else:
 			start_epoch = START_EPOCH
 
@@ -60,11 +54,12 @@ if __name__ == "__main__":
 			print("Epoch", epoch + 1, '/', EPOCHS)
 
 			# inp -> image, tar -> html
-			with tqdm(train_datasets, total=train_set_len) as t:
-				for dist_inputs in t:
-					master.train_step(img, caption_token)
-					t.set_postfix(loss=master.train_loss.result().numpy())
-					t.update()
+			with mirrored_strategy.scope():
+				with tqdm(train_datasets, total=train_set_len) as t:
+					for dist_inputs in t:
+						master.train_step(dist_inputs)
+						t.set_postfix(loss=master.train_loss.result().numpy())
+						t.update()
 
 			# store loss and acc to tensorboard
 			with train_summary_writer.as_default():
@@ -129,13 +124,14 @@ if __name__ == "__main__":
 			print("Epoch", epoch + 1, '/', EPOCHS)
 
 			# inp -> image, tar -> html
-			with tqdm(train_datasets, total=train_set_len) as t:
-				for (img, caption_token) in t:
-					master.scst_train_step(img, caption_token)
-					t.set_postfix(loss=master.train_loss.result().numpy(),
-					              reward_sample=master.train_reward_scst_train.result().numpy(),
-					              reward_argmax=master.train_reward_scst_infer.result().numpy())
-					t.update()
+			with mirrored_strategy.scope():
+				with tqdm(train_datasets, total=train_set_len) as t:
+					for dist_inputs in t:
+						master.scst_train_step(dist_inputs)
+						t.set_postfix(loss=master.train_loss.result().numpy(),
+						              reward_sample=master.train_reward_scst_train.result().numpy(),
+						              reward_argmax=master.train_reward_scst_infer.result().numpy())
+						t.update()
 
 			# store loss and acc to tensorboard
 			with train_summary_writer.as_default():
