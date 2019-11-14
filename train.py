@@ -45,10 +45,7 @@ if __name__ == "__main__":
 		if START_EPOCH is None:
 			start_epoch = 0
 			if master.ckpt_manager.latest_checkpoint:
-				if key_epoch in additional_info:
-					start_epoch = additional_info[key_epoch]
-				else:
-					start_epoch = 0
+				start_epoch = int(master.ckpt_manager.latest_checkpoint.split("-")[-1]) - 1
 		else:
 			start_epoch = START_EPOCH
 
@@ -64,7 +61,7 @@ if __name__ == "__main__":
 
 			# inp -> image, tar -> html
 			with tqdm(train_datasets, total=train_set_len) as t:
-				for (img, caption_token) in t:
+				for dist_inputs in t:
 					master.train_step(img, caption_token)
 					t.set_postfix(loss=master.train_loss.result().numpy())
 					t.update()

@@ -136,7 +136,9 @@ def get_coco_images_dataset(dataDir, dataType, n_test=None, batch_size=BATCH_SIZ
 	image_dataset = image_dataset.shuffle(buffer_size).padded_batch(batch_size, padded_shapes=([None, None, None], [max_seq_len]), drop_remainder=True)  # shuffle and batch with length of padding according to the the batch
 	image_dataset = image_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-	return image_dataset, max_seq_len, set_len
+	dist_dataset = mirrored_strategy.experimental_distribute_dataset(image_dataset)  # make it distributed
+
+	return dist_dataset, max_seq_len, set_len
 
 def get_coco_images_captions_generator(dataDir, dataType):
 	"""

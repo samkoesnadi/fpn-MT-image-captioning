@@ -23,15 +23,16 @@ class Pipeline():
 		self.target_vocab_size = self.tokenizer.num_words  # the total length of index
 		input_vocab_size = math.ceil(IMAGE_INPUT_SIZE / 16) ** 2  # the input vocab size is the last dimension from Feature Extractor, i.e. if the input is 512, max input_vocab_size would be 32*32
 
-		# instance of Transformers
-		self.transformer = Transformer(num_layers, d_model, num_heads, dff,
-		                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
-
 		# define optimizer and loss
 		self.learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)
 
-		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipnorm=1.)
-		self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
+		with mirrored_strategy.scope():
+			# instance of Transformers
+			self.transformer = Transformer(num_layers, d_model, num_heads, dff,
+			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
+
+			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipnorm=1.)
+			self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
 
 		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 		self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
