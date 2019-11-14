@@ -251,7 +251,10 @@ class Pipeline():
 		                   axis=-1)  # add zeros in the end
 		masks = tf.zeros((img_shape[0], max_seq_len - 1, self.target_vocab_size))  # minus one because there is no start token
 
-		for i_seq in tf.range(max_seq_len - 1):  # minus one because start token is already inside
+		output_shape = tf.shape(output)  # shape of the output to inform the iteration about the output dimension
+		masks_shape = tf.shape(masks)  # shape of the masks to inform the iteration about the masks dimension
+
+		for i_seq in range(max_seq_len - 1):  # minus one because start token is already inside
 			_masks = create_masks(output)
 
 			# predictions.shape == (batch_size, seq_len, vocab_size)
@@ -269,6 +272,9 @@ class Pipeline():
 			# as its input.
 			output = tf.concat([output[:, :i_seq + 1], predicted_id, tf.zeros([img_shape[0], max_seq_len - i_seq - 2], tf.int32)], axis=-1)
 			masks = tf.concat([masks[:, :i_seq], mask, tf.zeros([img_shape[0], max_seq_len - i_seq - 2, self.target_vocab_size])], axis=1)
+
+			output = tf.reshape(output, output_shape)
+			masks = tf.reshape(masks, masks_shape)
 
 		return output, masks
 
@@ -293,7 +299,9 @@ class Pipeline():
 		output = tf.concat([output, tf.zeros((img_shape[0], max_seq_len - 1), tf.int32)],
 		                   axis=-1)  # add zeros in the end
 
-		for i_seq in tf.range(max_seq_len - 1):  # minus one because start token is already inside
+		output_shape = tf.shape(output)  # shape of the output to inform the iteration about the output dimension
+
+		for i_seq in range(max_seq_len - 1):  # minus one because start token is already inside
 			_masks = create_masks(output)
 
 			# predictions.shape == (batch_size, seq_len, vocab_size)
@@ -307,6 +315,7 @@ class Pipeline():
 			# concatentate the predicted_id to the output which is given to the decoder
 			# as its input.
 			output = tf.concat([output[:, :i_seq + 1], predicted_id, tf.zeros([img_shape[0], max_seq_len - i_seq - 2], tf.int32)], axis=-1)
+			output = tf.reshape(output, output_shape)
 
 		return output[:, 1:]  # no start token inside, end token is still inside
 
