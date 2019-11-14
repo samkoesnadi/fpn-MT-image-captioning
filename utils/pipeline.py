@@ -34,29 +34,29 @@ class Pipeline():
 			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipnorm=1.)
 			self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
 
-		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
-		self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
+			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+			self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
 
-		# define train loss and accuracy
-		self.train_loss = tf.keras.metrics.Mean(name='train_loss')
-		self.train_reward_scst_infer = tf.keras.metrics.Mean(name='cider_infer_scst_reward')
-		self.train_reward_scst_train = tf.keras.metrics.Mean(name='cider_train_scst_reward')
+			# define train loss and accuracy
+			self.train_loss = tf.keras.metrics.Mean(name='train_loss')
+			self.train_reward_scst_infer = tf.keras.metrics.Mean(name='cider_infer_scst_reward')
+			self.train_reward_scst_train = tf.keras.metrics.Mean(name='cider_train_scst_reward')
 
-		# checkpoint
-		self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
-		                                optimizer=self.optimizer,
-		                                scst_optimizer=self.scst_optimizer)
+			# checkpoint
+			self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
+			                                optimizer=self.optimizer,
+			                                scst_optimizer=self.scst_optimizer)
 
-		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=MAX_CKPT_TO_KEEP)
+			self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=MAX_CKPT_TO_KEEP)
 
-		# if a checkpoint exists, restore the latest checkpoint.
-		if self.ckpt_manager.latest_checkpoint:
-			checkpoint_to_restore = os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) if CKPT_INDEX_RESTORE != -1 else self.ckpt_manager.latest_checkpoint
-			self.ckpt.restore(checkpoint_to_restore)
-			print(os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) + ' checkpoint restored!!')
+			# if a checkpoint exists, restore the latest checkpoint.
+			if self.ckpt_manager.latest_checkpoint:
+				checkpoint_to_restore = os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) if CKPT_INDEX_RESTORE != -1 else self.ckpt_manager.latest_checkpoint
+				self.ckpt.restore(checkpoint_to_restore)
+				print(os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) + ' checkpoint restored!!')
 
-		# define metric for SCST
-		self.cider_score_eval = Cider()
+			# define metric for SCST
+			self.cider_score_eval = Cider()
 
 	def loss(self, real, pred):
 		mask = tf.math.logical_not(tf.math.equal(real, 0))
