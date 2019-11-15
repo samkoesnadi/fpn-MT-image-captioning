@@ -26,6 +26,9 @@ class Pipeline():
 		# define optimizer and loss
 		self.learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)
 
+		# dropout for sampling
+		self.sample_dropout = tf.keras.layers.Dropout(DROPOUT_RATE)
+
 		with mirrored_strategy.scope():
 			# instance of Transformers
 			self.transformer = Transformer(num_layers, d_model, num_heads, dff,
@@ -78,7 +81,7 @@ class Pipeline():
 		log_probs = self.loss_object(masks, predictions)  # log_softmax the prediction and mask it with the sample
 		masked_log_probs = log_probs * masks_trains
 
-		loss_ = tf.broadcast_to(tf.expand_dims(reward * BATCH_SIZE, -1), tf.shape(masked_log_probs)) * masked_log_probs
+		loss_ = tf.broadcast_to(tf.expand_dims(reward, -1), tf.shape(masked_log_probs)) * masked_log_probs
 
 		return loss_
 
@@ -156,8 +159,8 @@ class Pipeline():
 			self.scst_optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
 
 			self.train_loss(loss)
-			self.train_reward_scst_train(tf.reduce_sum(cider_resTrains))
-			self.train_reward_scst_infer(tf.reduce_sum(cider_resInfs))
+			self.train_reward_scst_train(tf.reduce_mean(cider_resTrains))
+			self.train_reward_scst_infer(tf.reduce_mean(cider_resInfs))
 
 			return loss_raw
 
@@ -226,6 +229,8 @@ class Pipeline():
 		cider_resInfs = cider_res[:batch_size]
 		cider_resTrains = cider_res[batch_size:2*batch_size]
 
+		print(cider_resInfs, cider_resTrains)
+
 		return cider_resInfs, cider_resTrains, np.array(masks_trains)
 
 
@@ -263,7 +268,7 @@ class Pipeline():
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
 
-			mask = self.boltzmann_sample(predictions, temperature=softmax_temp)
+			mask = self.boltzmann_sample(self.sample_dropout(predictions), temperature=softmax_temp)
 
 			# get predicted_id from the mask
 			predicted_id = tf.argmax(mask, axis=-1, output_type=tf.int32)
@@ -291,7 +296,7 @@ class Pipeline():
 		img_shape = tf.shape(img)  # shape of the image
 
 		# preprocessing
-		encoder_output, _ = self.transformer.encoder(img, False, None)  # (batch_size, inp_seq_len, d_model)
+		encoder_output, _ = self.transformer.encoder(img, True, None)  # (batch_size, inp_seq_len, d_model)
 
 		# first word is start token
 		decoder_input = [start_token]
@@ -305,12 +310,12 @@ class Pipeline():
 			_masks = create_masks(output)
 
 			# predictions.shape == (batch_size, seq_len, vocab_size)
-			predictions, _ = self.transformer(encoder_output, output, False, _masks)
+			predictions, _ = self.transformer(encoder_output, output, True, _masks)
 
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
 
-			predicted_id = tf.argmax(predictions, axis=-1, output_type=tf.int32)
+			predicted_id = tf.argmax(self.sample_dropout(predictions), axis=-1, output_type=tf.int32)
 
 			# concatentate the predicted_id to the output which is given to the decoder
 			# as its input.
@@ -345,7 +350,7 @@ class Pipeline():
 
 		# preprocessing
 		img_expand_dims = tf.expand_dims(img, 0)
-		encoder_output, coatt_weights = self.transformer.encoder(img_expand_dims, False, None)  # (batch_size, inp_seq_len, d_model)
+		encoder_output, coatt_weights = self.transformer.encoder(img_expand_dims, True, None)  # (batch_size, inp_seq_len, d_model)
 
 		# For beam search, tile encoder_output
 		encoder_output = tf.tile(encoder_output, tf.constant([BEAM_SEARCH_N, 1, 1]))
@@ -362,7 +367,7 @@ class Pipeline():
 			# predictions.shape == (batch_size, seq_len, vocab_size)
 			predictions, attention_weights = self.transformer(encoder_output,
 			                                                  beam_output,
-			                                                  False,
+			                                                  True,
 			                                                  look_ahead_mask)
 
 			# select the last word from the seq_len dimension
