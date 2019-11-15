@@ -19,15 +19,15 @@ IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinane
 BATCH_SIZE = 10  # for the SCST
 XE_BATCH_SIZE = 12
 BUFFER_SIZE = 2000  # this is important for shuffling
-EPOCHS = 100
-XE_EPOCHS = 30  # the amount of epoch cross entropy will go through.
+EPOCHS = 50
+XE_EPOCHS = 20  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 4
 N_VAL_DATASET = 50  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
 N_EPOCH_TO_EVALUATE = 1  # rythm of the epoch to evaluate and save checkpoint
 MAX_EVAL_TIME = 180 # maximum evaluation time in seconds
 AMOUNT_OF_VALIDATION = 100  # used for convert_dataset
-DROPOUT_RATE = 0.5
+DROPOUT_RATE = 0.3
 
 # dataset preprocessing parameter
 P_AUGMENTATION = 0.8
@@ -86,10 +86,10 @@ BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to
 
 # SCST's parameter
 XE_LEARNING_EPSILON = 1e-7
-SCST_LEARNING_EPSILON = 1e-5
-SCST_LEARNING_RATE = 1e-6
+# SCST_LEARNING_EPSILON = 1e-5
+# SCST_LEARNING_RATE = 1e-6
 REWARD_DISCOUNT_FACTOR = 100.  # as in the SCST paper, the CIDEr is always in range above 100, while what I have is always in range 1
-MAX_TEMPERATURE = 1.
+MAX_TEMPERATURE = 1.5
 
 
 # testing
