@@ -229,8 +229,6 @@ class Pipeline():
 		cider_resInfs = cider_res[:batch_size]
 		cider_resTrains = cider_res[batch_size:2*batch_size]
 
-		print(cider_resInfs, cider_resTrains)
-
 		return cider_resInfs, cider_resTrains, np.array(masks_trains)
 
 
