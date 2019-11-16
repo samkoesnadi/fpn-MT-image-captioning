@@ -33,6 +33,8 @@ class Pipeline():
 			# instance of Transformers
 			self.transformer = Transformer(num_layers, d_model, num_heads, dff,
 			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
+			self.i_transformer = Transformer(num_layers, d_model, num_heads, dff,
+			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
 			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipnorm=1.)
 			self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
@@ -49,6 +51,7 @@ class Pipeline():
 			self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
 			                                optimizer=self.optimizer,
 			                                scst_optimizer=self.scst_optimizer)
+			self.i_ckpt = tf.train.Checkpoint(transformer=self.i_transformer)
 
 			self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=MAX_CKPT_TO_KEEP)
 
@@ -56,6 +59,7 @@ class Pipeline():
 			if self.ckpt_manager.latest_checkpoint:
 				checkpoint_to_restore = os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) if CKPT_INDEX_RESTORE != -1 else self.ckpt_manager.latest_checkpoint
 				self.ckpt.restore(checkpoint_to_restore)
+				self.i_ckpt.restore(checkpoint_to_restore)
 				print(os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) + ' checkpoint restored!!')
 
 			# define metric for SCST
@@ -294,7 +298,7 @@ class Pipeline():
 		img_shape = tf.shape(img)  # shape of the image
 
 		# preprocessing
-		encoder_output, _ = self.transformer.encoder(img, True, None)  # (batch_size, inp_seq_len, d_model)
+		encoder_output, _ = self.i_transformer.encoder(img, True, None)  # (batch_size, inp_seq_len, d_model)
 
 		# first word is start token
 		decoder_input = [start_token]
@@ -308,7 +312,7 @@ class Pipeline():
 			_masks = create_masks(output)
 
 			# predictions.shape == (batch_size, seq_len, vocab_size)
-			predictions, _ = self.transformer(encoder_output, output, True, _masks)
+			predictions, _ = self.i_transformer(encoder_output, output, True, _masks)
 
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
