@@ -26,9 +26,6 @@ class Pipeline():
 		# define optimizer and loss
 		self.learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)
 
-		# dropout for sampling
-		self.sample_dropout = tf.keras.layers.Dropout(0.5)
-
 		with mirrored_strategy.scope():
 			# instance of Transformers
 			self.transformer = Transformer(num_layers, d_model, num_heads, dff,
@@ -51,7 +48,6 @@ class Pipeline():
 			self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
 			                                optimizer=self.optimizer,
 			                                scst_optimizer=self.scst_optimizer)
-			self.i_ckpt = tf.train.Checkpoint(transformer=self.i_transformer)
 
 			self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=MAX_CKPT_TO_KEEP)
 
@@ -59,11 +55,13 @@ class Pipeline():
 			if self.ckpt_manager.latest_checkpoint:
 				checkpoint_to_restore = os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) if CKPT_INDEX_RESTORE != -1 else self.ckpt_manager.latest_checkpoint
 				self.ckpt.restore(checkpoint_to_restore)
-				self.i_ckpt.restore(checkpoint_to_restore)
 				print(os.path.join(checkpoint_path, "ckpt-{}".format(CKPT_INDEX_RESTORE)) + ' checkpoint restored!!')
 
 			# define metric for SCST
 			self.cider_score_eval = Cider()
+
+			# transfer weight
+			self.i_transformer.set_weights(self.transformer.get_weights())
 
 	def loss(self, real, pred):
 		mask = tf.math.logical_not(tf.math.equal(real, 0))
@@ -270,7 +268,7 @@ class Pipeline():
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
 
-			mask = self.boltzmann_sample(self.sample_dropout(predictions), temperature=softmax_temp)
+			mask = self.boltzmann_sample(predictions, temperature=softmax_temp)
 
 			# get predicted_id from the mask
 			predicted_id = tf.argmax(mask, axis=-1, output_type=tf.int32)
@@ -317,7 +315,7 @@ class Pipeline():
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
 
-			predicted_id = tf.argmax(self.sample_dropout(predictions), axis=-1, output_type=tf.int32)
+			predicted_id = tf.argmax(predictions, axis=-1, output_type=tf.int32)
 
 			# concatentate the predicted_id to the output which is given to the decoder
 			# as its input.

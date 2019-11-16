@@ -16,10 +16,10 @@ KERNEL_REGULARIZER_LAMBDA = 1e-5
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 10  # for the SCST
-XE_BATCH_SIZE = 12
+BATCH_SIZE = 14  # for the SCST
+XE_BATCH_SIZE = 16
 BUFFER_SIZE = 2000  # this is important for shuffling
-EPOCHS = 100
+EPOCHS = 50
 XE_EPOCHS = 30  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 4
 N_VAL_DATASET = 50  # the number of dataset to be validated
@@ -40,9 +40,9 @@ TOP_K = 1000  # this is for tokenizer
 # MIN_EPOCH_TO_BREAK = EPOCHS // 2
 MIN_EPOCH_TO_EVAL = 10
 MIN_EPOCH_TO_SAVE_CKPT = 5
-MAX_CKPT_TO_KEEP = 10
+MAX_CKPT_TO_KEEP = 20
 # GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
-WARM_UP_STEPS = 4000  # for scheduler
+WARM_UP_STEPS = 2000  # for scheduler
 CKPT_INDEX_RESTORE = -1  # -1 for the last one
 START_EPOCH = None  # set it to None, otherwise it overrides the start epoch from additional file
 
@@ -88,7 +88,7 @@ BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to
 XE_LEARNING_EPSILON = 1e-7
 SCST_LEARNING_EPSILON = 1e-5
 SCST_LEARNING_RATE = 1e-6
-REWARD_DISCOUNT_FACTOR = 1.  # as in the SCST paper, the CIDEr is always in range above 100, while what I have is always in range 1
+REWARD_DISCOUNT_FACTOR = 100.  # as in the SCST paper, the CIDEr is always in range above 100, while what I have is always in range 1
 MAX_TEMPERATURE = 1.
 
 
