@@ -27,7 +27,7 @@ class Pipeline():
 		self.learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)
 
 		# dropout for sampling
-		self.sample_dropout = tf.keras.layers.Dropout(DROPOUT_RATE)
+		self.sample_dropout = tf.keras.layers.Dropout(0.5)
 
 		with mirrored_strategy.scope():
 			# instance of Transformers
