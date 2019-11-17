@@ -24,8 +24,8 @@ class Pipeline():
 		input_vocab_size = math.ceil(IMAGE_INPUT_SIZE / 16) ** 2  # the input vocab size is the last dimension from Feature Extractor, i.e. if the input is 512, max input_vocab_size would be 32*32
 
 		# define optimizer and loss
-		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS, multiplier=.3)
-		self.scst_learning_rate = SCSTCustomSchedule(SCST_LEARNING_RATE, 5e-7)
+		self.learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)
+		self.scst_learning_rate = SCSTCustomSchedule(SCST_LEARNING_RATE, 1e-6)
 
 		# dropout for sampling
 		self.sample_dropout = tf.keras.layers.Dropout(DROPOUT_RATE)
@@ -35,8 +35,8 @@ class Pipeline():
 			self.transformer = Transformer(num_layers, d_model, num_heads, dff,
 			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
-			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, epsilon=XE_LEARNING_EPSILON, clipvalue=5.)
-			self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, epsilon=SCST_LEARNING_EPSILON, clipvalue=.1)
+			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipvalue=5.)
+			self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
 
 			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 			self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
@@ -117,7 +117,7 @@ class Pipeline():
 		per_example_losses = mirrored_strategy.experimental_run_v2(
 			step_fn, args=(dist_inputs,))
 		mean_loss = mirrored_strategy.reduce(
-			tf.distribute.ReduceOp.SUM, per_example_losses, axis=0) / XE_BATCH_SIZE
+			tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
 		return mean_loss
 
 	@tf.function
@@ -168,7 +168,7 @@ class Pipeline():
 		per_example_losses = mirrored_strategy.experimental_run_v2(
 			step_fn, args=(dist_inputs,))
 		mean_loss = mirrored_strategy.reduce(
-			tf.distribute.ReduceOp.SUM, per_example_losses, axis=0) / BATCH_SIZE
+			tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
 		return mean_loss
 
 
