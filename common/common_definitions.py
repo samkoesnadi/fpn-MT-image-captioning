@@ -16,7 +16,7 @@ KERNEL_REGULARIZER_LAMBDA = 1e-5
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 10  # for the SCST
+BATCH_SIZE = 12  # for the SCST
 XE_BATCH_SIZE = 12
 BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 50
@@ -85,7 +85,7 @@ N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the 
 BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
 # SCST's parameter
-XE_LEARNING_EPSILON = 1e-7
+XE_LEARNING_EPSILON = 1e-5
 SCST_LEARNING_EPSILON = 1e-5
 MAX_SCST_LEARNING_RATE = 1e-6
 MIN_SCST_LEARNING_RATE = 1e-7

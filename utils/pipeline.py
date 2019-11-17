@@ -34,9 +34,12 @@ class Pipeline():
 			# instance of Transformers
 			self.transformer = Transformer(num_layers, d_model, num_heads, dff,
 			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
+			self.i_transformer = Transformer(num_layers, d_model, num_heads, dff,
+			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE,
+			                               max_seq_len=self.max_seq_len)
 
 			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipvalue=5.)
-			self.scst_optimizer = tf.keras.optimizers.Adam(self.scst_learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
+			self.scst_optimizer = tf.keras.optimizers.Adam(self.scst_learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=.5)
 
 			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 			self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
@@ -61,6 +64,10 @@ class Pipeline():
 
 			# define metric for SCST
 			self.cider_score_eval = Cider()
+
+			# copy weight of transformer to i_transformer
+			self.i_transformer.set_weights(self.transformer.get_weights())
+
 
 	def loss(self, real, pred):
 		mask = tf.math.logical_not(tf.math.equal(real, 0))
@@ -295,7 +302,7 @@ class Pipeline():
 		img_shape = tf.shape(img)  # shape of the image
 
 		# preprocessing
-		encoder_output, _ = self.transformer.encoder(img, True, None)  # (batch_size, inp_seq_len, d_model)
+		encoder_output, _ = self.i_transformer.encoder(img, True, None)  # (batch_size, inp_seq_len, d_model)
 
 		# first word is start token
 		decoder_input = [start_token]
@@ -309,7 +316,7 @@ class Pipeline():
 			_masks = create_masks(output)
 
 			# predictions.shape == (batch_size, seq_len, vocab_size)
-			predictions, _ = self.transformer(encoder_output, output, True, _masks)
+			predictions, _ = self.i_transformer(encoder_output, output, True, _masks)
 
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
