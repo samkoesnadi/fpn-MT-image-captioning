@@ -25,7 +25,7 @@ class Pipeline():
 
 		# define optimizer and loss
 		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS, multiplier=.3)
-		self.scst_learning_rate = SCSTCustomSchedule(dff, SCST_LEARNING_RATE, 5e-7)
+		self.scst_learning_rate = SCSTCustomSchedule(SCST_LEARNING_RATE, 5e-7)
 
 		# dropout for sampling
 		self.sample_dropout = tf.keras.layers.Dropout(DROPOUT_RATE)
