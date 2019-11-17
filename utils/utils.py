@@ -149,7 +149,7 @@ def sample_temperature_schedule(t):
 	# cast t to float32
 	t = tf.cast(t, tf.float32)
 
-	return tf.maximum(1., MAX_TEMPERATURE * tf.exp(-MAX_TEMPERATURE * 10 ** -4 * t))
+	return tf.maximum(1., MAX_TEMPERATURE * tf.exp(-MAX_TEMPERATURE * 10 ** -4.7 * t))
 
 # class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):  # this one will go down second time some how
 # 	def __init__(self, set_len):
@@ -169,36 +169,52 @@ def sample_temperature_schedule(t):
 #
 # 		return self.lr
 
-# class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):  # this one will go down second time some how
-# 	def __init__(self, d_model, warmup_steps=4000, multiplier=1.):
-# 		super(CustomSchedule, self).__init__()
-#
-# 		self.d_model = d_model
-# 		self.d_model = tf.cast(self.d_model, tf.float32)
-#
-# 		self.warmup_steps = warmup_steps
-# 		self.multiplier = multiplier
-#
-# 	def __call__(self, step):
-# 		arg1 = tf.math.rsqrt(step) / tf.maximum((step - self.warmup_steps) * self.multiplier / (self.warmup_steps * 2), 1)
-# 		arg2 = step * (self.warmup_steps ** -1.5)
-#
-# 		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
-
-class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-	def __init__(self, d_model, warmup_steps=4000):
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):  # this one will go down second time some how
+	def __init__(self, d_model, warmup_steps=4000, multiplier=1.):
 		super(CustomSchedule, self).__init__()
 
 		self.d_model = d_model
 		self.d_model = tf.cast(self.d_model, tf.float32)
 
 		self.warmup_steps = warmup_steps
+		self.multiplier = multiplier
 
 	def __call__(self, step):
-		arg1 = tf.math.rsqrt(step)
+		arg1 = tf.math.rsqrt(step) / tf.maximum((step - self.warmup_steps) * self.multiplier / (self.warmup_steps * 2), 1)
 		arg2 = step * (self.warmup_steps ** -1.5)
 
 		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+
+class SCSTCustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):  # this one will go down second time some how
+	def __init__(self, max_temperature, min_temperature):
+		super(SCSTCustomSchedule, self).__init__()
+
+		if max_temperature < min_temperature:
+			raise Exception("max temperature is less than min temperature")
+
+		self.max_temperature = max_temperature
+		self.min_temperature = min_temperature
+
+		self.multiplier = 10 ** -4.7 if self.max_temperature >= 1 else 10 ** 1.6
+
+
+	def __call__(self, step):
+		return tf.maximum(self.min_temperature, self.max_temperature * tf.exp(-self.max_temperature * self.multiplier * step))
+
+# class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+# 	def __init__(self, d_model, warmup_steps=4000):
+# 		super(CustomSchedule, self).__init__()
+#
+# 		self.d_model = d_model
+# 		self.d_model = tf.cast(self.d_model, tf.float32)
+#
+# 		self.warmup_steps = warmup_steps
+#
+# 	def __call__(self, step):
+# 		arg1 = tf.math.rsqrt(step)
+# 		arg2 = step * (self.warmup_steps ** -1.5)
+#
+# 		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
 
 class CustomSchedule_rough(tf.keras.optimizers.schedules.LearningRateSchedule):
