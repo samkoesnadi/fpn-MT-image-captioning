@@ -25,7 +25,7 @@ class Pipeline():
 
 		# define optimizer and loss
 		self.learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)
-		self.scst_learning_rate = SCSTCustomSchedule(SCST_LEARNING_RATE, 1e-6)
+		self.scst_learning_rate = SCSTCustomSchedule(MAX_SCST_LEARNING_RATE, MIN_SCST_LEARNING_RATE)
 
 		# dropout for sampling
 		self.sample_dropout = tf.keras.layers.Dropout(DROPOUT_RATE)
@@ -36,7 +36,7 @@ class Pipeline():
 			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
 			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipvalue=5.)
-			self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
+			self.scst_optimizer = tf.keras.optimizers.Adam(self.scst_learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
 
 			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 			self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
