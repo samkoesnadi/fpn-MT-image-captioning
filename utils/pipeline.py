@@ -28,15 +28,15 @@ class Pipeline():
 		self.scst_learning_rate = SCSTCustomSchedule(MAX_SCST_LEARNING_RATE, MIN_SCST_LEARNING_RATE)
 
 		# dropout for sampling
-		self.sample_dropout = tf.keras.layers.Dropout(DROPOUT_RATE)
+		self.sample_dropout = tf.keras.layers.Dropout(0.5)
 
 		with mirrored_strategy.scope():
 			# instance of Transformers
 			self.transformer = Transformer(num_layers, d_model, num_heads, dff,
 			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
-			self.i_transformer = Transformer(num_layers, d_model, num_heads, dff,
-			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE,
-			                               max_seq_len=self.max_seq_len)
+			# self.i_transformer = Transformer(num_layers, d_model, num_heads, dff,
+			#                                input_vocab_size, self.target_vocab_size, DROPOUT_RATE,
+			#                                max_seq_len=self.max_seq_len)
 
 			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipvalue=5.)
 			self.scst_optimizer = tf.keras.optimizers.Adam(self.scst_learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=.5)
@@ -65,8 +65,10 @@ class Pipeline():
 			# define metric for SCST
 			self.cider_score_eval = Cider()
 
-			# copy weight of transformer to i_transformer
-			self.i_transformer.set_weights(self.transformer.get_weights())
+			# # copy weight of transformer to i_transformer
+			# i_transformer_weights = self.transformer.weights
+			# [i_transformer_weights[i_weight].assign(weight) for i_weight, weight in enumerate(self.transformer.weights)]
+			self.i_transformer = self.transformer
 
 
 	def loss(self, real, pred):
@@ -89,7 +91,7 @@ class Pipeline():
 		log_probs = self.loss_object(masks, predictions)  # log_softmax the prediction and mask it with the sample
 		masked_log_probs = log_probs * masks_trains
 
-		loss_ = tf.broadcast_to(tf.expand_dims(reward * BATCH_SIZE, -1), tf.shape(masked_log_probs)) * masked_log_probs
+		loss_ = tf.broadcast_to(tf.expand_dims(reward, -1), tf.shape(masked_log_probs)) * masked_log_probs
 
 		return loss_
 
