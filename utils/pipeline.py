@@ -117,7 +117,7 @@ class Pipeline():
 		per_example_losses = mirrored_strategy.experimental_run_v2(
 			step_fn, args=(dist_inputs,))
 		mean_loss = mirrored_strategy.reduce(
-			tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
+			tf.distribute.ReduceOp.SUM, per_example_losses, axis=0) / XE_BATCH_SIZE
 		return mean_loss
 
 	@tf.function
@@ -168,7 +168,7 @@ class Pipeline():
 		per_example_losses = mirrored_strategy.experimental_run_v2(
 			step_fn, args=(dist_inputs,))
 		mean_loss = mirrored_strategy.reduce(
-			tf.distribute.ReduceOp.MEAN, per_example_losses, axis=0)
+			tf.distribute.ReduceOp.SUM, per_example_losses, axis=0) / BATCH_SIZE
 		return mean_loss
 
 
