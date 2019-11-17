@@ -34,8 +34,8 @@ class Pipeline():
 			self.transformer = Transformer(num_layers, d_model, num_heads, dff,
 			                               input_vocab_size, self.target_vocab_size, DROPOUT_RATE, max_seq_len=self.max_seq_len)
 
-			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=XE_LEARNING_EPSILON, clipvalue=5.)
-			# self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, beta_1=0.9, beta_2=0.98, epsilon=SCST_LEARNING_EPSILON, clipnorm=1.)
+			self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, amsgrad=True, epsilon=XE_LEARNING_EPSILON)
+			self.scst_optimizer = tf.keras.optimizers.Adam(SCST_LEARNING_RATE, amsgrad=True, epsilon=SCST_LEARNING_EPSILON)
 
 			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 			self.loss_object = tf.keras.losses.CategoricalCrossentropy(from_logits=True, reduction='none')
@@ -47,7 +47,8 @@ class Pipeline():
 
 			# checkpoint
 			self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
-			                                optimizer=self.optimizer)
+			                                optimizer=self.optimizer,
+			                                scst_optimizer=self.scst_optimizer)
 
 			self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=MAX_CKPT_TO_KEEP)
 
@@ -80,7 +81,7 @@ class Pipeline():
 		log_probs = self.loss_object(masks, predictions)  # log_softmax the prediction and mask it with the sample
 		masked_log_probs = log_probs * masks_trains
 
-		loss_ = tf.broadcast_to(tf.expand_dims(reward, -1), tf.shape(masked_log_probs)) * masked_log_probs
+		loss_ = tf.broadcast_to(tf.expand_dims(reward * BATCH_SIZE, -1), tf.shape(masked_log_probs)) * masked_log_probs
 
 		return loss_
 
@@ -155,11 +156,11 @@ class Pipeline():
 				loss = tf.reduce_sum(loss_raw) * (1.0 / BATCH_SIZE)
 
 			gradients = tape.gradient(loss, self.transformer.trainable_variables)
-			self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
+			self.scst_optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
 
 			self.train_loss(loss)
-			self.train_reward_scst_train(tf.reduce_mean(cider_resTrains))
-			self.train_reward_scst_infer(tf.reduce_mean(cider_resInfs))
+			self.train_reward_scst_train(tf.reduce_sum(cider_resTrains))
+			self.train_reward_scst_infer(tf.reduce_sum(cider_resInfs))
 
 			return loss_raw
 
@@ -240,7 +241,7 @@ class Pipeline():
 
 		# define start token and end token
 		start_token = self.tokenizer.num_words
-		softmax_temp = sample_temperature_schedule(self.optimizer.iterations)
+		softmax_temp = sample_temperature_schedule(self.scst_optimizer.iterations)
 		img_shape = tf.shape(img)  # shape of the image
 
 		# preprocessing

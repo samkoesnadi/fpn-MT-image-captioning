@@ -16,11 +16,11 @@ KERNEL_REGULARIZER_LAMBDA = 1e-5
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 10  # for the SCST
-XE_BATCH_SIZE = 12
+BATCH_SIZE = 8  # for the SCST
+XE_BATCH_SIZE = 10
 BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 50
-XE_EPOCHS = 20  # the amount of epoch cross entropy will go through.
+XE_EPOCHS = 30  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 4
 N_VAL_DATASET = 50  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
@@ -86,8 +86,8 @@ BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to
 
 # SCST's parameter
 XE_LEARNING_EPSILON = 1e-7
-# SCST_LEARNING_EPSILON = 1e-5
-# SCST_LEARNING_RATE = 1e-6
+SCST_LEARNING_EPSILON = 1e-7
+SCST_LEARNING_RATE = 5e-5
 REWARD_DISCOUNT_FACTOR = 100.  # as in the SCST paper, the CIDEr is always in range above 100, while what I have is always in range 1
 MAX_TEMPERATURE = 1.5
 
@@ -109,6 +109,6 @@ mirrored_strategy = tf.distribute.MirroredStrategy()  # strategy for distributed
 
 logging.info ('Number of GPU devices: {}'.format(mirrored_strategy.num_replicas_in_sync))
 
-# multiply the batch size according to the num of replicas
-BATCH_SIZE *= mirrored_strategy.num_replicas_in_sync
-XE_BATCH_SIZE *= mirrored_strategy.num_replicas_in_sync
+# # multiply the batch size according to the num of replicas
+# BATCH_SIZE *= mirrored_strategy.num_replicas_in_sync
+# XE_BATCH_SIZE *= mirrored_strategy.num_replicas_in_sync
