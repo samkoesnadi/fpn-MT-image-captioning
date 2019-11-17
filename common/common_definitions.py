@@ -16,7 +16,7 @@ KERNEL_REGULARIZER_LAMBDA = 1e-5
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 8  # for the SCST
+BATCH_SIZE = 10  # for the SCST
 XE_BATCH_SIZE = 10
 BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 50
