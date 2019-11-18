@@ -16,11 +16,11 @@ KERNEL_REGULARIZER_LAMBDA = 1e-5
 
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 512  # this to fit default criteria from MobileNetV2-retinanet
-BATCH_SIZE = 12  # for the SCST
+BATCH_SIZE = 10  # for the SCST
 XE_BATCH_SIZE = 12
 BUFFER_SIZE = 2000  # this is important for shuffling
-EPOCHS = 45
-XE_EPOCHS = 25  # the amount of epoch cross entropy will go through.
+EPOCHS = 50
+XE_EPOCHS = 30  # the amount of epoch cross entropy will go through.
 BEAM_SEARCH_N = 4
 N_VAL_DATASET = 50  # the number of dataset to be validated
 N_TRAIN_DATASET = None  # the number of dataset to be trained
