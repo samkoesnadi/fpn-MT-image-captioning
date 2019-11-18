@@ -11,7 +11,7 @@ LOG_ATTENTION = False  # to output the attention layers as well
 LOGGING_LEVEL = logging.DEBUG
 
 ACTIVATION = tf.nn.relu
-KERNEL_INITIALIZER = tf.keras.initializers.glorot_uniform()
+KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 KERNEL_REGULARIZER_LAMBDA = 1e-5
 
 ### Set default parameters for all model
