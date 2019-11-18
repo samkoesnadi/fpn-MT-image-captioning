@@ -11,7 +11,7 @@ LOG_ATTENTION = False  # to output the attention layers as well
 LOGGING_LEVEL = logging.DEBUG
 
 ACTIVATION = tf.nn.relu
-KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
+KERNEL_INITIALIZER = tf.keras.initializers.glorot_uniform()
 KERNEL_REGULARIZER_LAMBDA = 1e-5
 
 ### Set default parameters for all model
@@ -85,8 +85,8 @@ N_CONV_SUBMODULE = 2  # how many times the intermediate CNNs is repeated in the 
 BASELINE_INDEX = 1  # index of the baseline in the pyramids array. range is 0 to NUM_OF_PYRAMIDS-1  (the less the bigger)
 
 # SCST's parameter
-XE_LEARNING_EPSILON = 1e-5
-SCST_LEARNING_EPSILON = 1e-5
+XE_LEARNING_EPSILON = 1e-7
+SCST_LEARNING_EPSILON = 1e-6
 MAX_SCST_LEARNING_RATE = 1e-6
 MIN_SCST_LEARNING_RATE = 5e-7
 REWARD_DISCOUNT_FACTOR = 100.  # as in the SCST paper, the CIDEr is always in range above 100, while what I have is always in range 1
