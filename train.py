@@ -182,13 +182,18 @@ if __name__ == "__main__":
 
 			print()
 
-		# print('Saving Transformer weights for epoch {}'.format(EPOCHS))
-		# master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
-		# master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
+		print('Saving Transformer weights for epoch {}'.format(EPOCHS))
+		with mirrored_strategy.scope():
+			master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
+			master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
 
 	else:  # NO TRAINING, just evaluation
 		max_seq_len = load_additional_info(ADDITIONAL_FILENAME)["max_seq_len"]
 		master = Pipeline(TOKENIZER_FILENAME, TRANSFORMER_CHECKPOINT_PATH, max_seq_len)  # master pipeline
+
+		if TRANSFORMER_WEIGHT_PATH is not None:
+			with mirrored_strategy.scope():
+				master.transformer.load_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
 
 		# evaluate
 		print("Evaluating...")
